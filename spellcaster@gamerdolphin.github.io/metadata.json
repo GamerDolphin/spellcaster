@@ -1,0 +1,10 @@
+{
+  "uuid": "spellcaster@gamerdolphin.github.io",
+  "name": "Spellcaster",
+  "description": "Draw glowing runes with your mouse to cast spells on your desktop.\n\nPress Super+Z, draw a rune and let go:\n🌀 Spiral: Fireball (close window)\n⚡ Zig-zag: Lightning (launch an app)\n⭕ Circle: Portal (show desktop)\n✔️ V: Freeze (lock screen)\n⛰️ Λ: Summon your familiar\n🥣 U: Enchant (play/pause music)\n⬇️ Line down: Slumber (suspend)\n\nEvery rune can be rebound in the Spellbook.",
+  "shell-version": ["50"],
+  "url": "https://github.com/GamerDolphin/spellcaster",
+  "settings-schema": "org.gnome.shell.extensions.spellcaster",
+  "gettext-domain": "spellcaster",
+  "version-name": "1.0"
+}

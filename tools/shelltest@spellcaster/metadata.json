@@ -1,0 +1,6 @@
+{
+  "uuid": "shelltest@spellcaster",
+  "name": "Spellcaster test driver",
+  "description": "Drives Spellcaster in a headless test session. Never install this for real.",
+  "shell-version": ["50"]
+}

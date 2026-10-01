@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="spellcaster">
+  <schema id="org.gnome.shell.extensions.spellcaster" path="/org/gnome/shell/extensions/spellcaster/">
+
+    <!-- Casting -->
+    <key name="cast-shortcut" type="as">
+      <default><![CDATA[['<Super>z']]]></default>
+      <summary>Shortcut that starts casting</summary>
+    </key>
+    <key name="tolerance" type="d">
+      <range min="0" max="1"/>
+      <default>0.5</default>
+      <summary>How forgiving rune recognition is (0 strict, 1 forgiving)</summary>
+    </key>
+    <key name="trail-theme" type="s">
+      <choices>
+        <choice value="arcane"/><choice value="ember"/><choice value="frost"/>
+        <choice value="fey"/><choice value="chaos"/>
+      </choices>
+      <default>'arcane'</default>
+      <summary>Colour of your magic</summary>
+    </key>
+    <key name="trail-width" type="i">
+      <range min="2" max="20"/>
+      <default>6</default>
+      <summary>Trail thickness</summary>
+    </key>
+    <key name="reduce-effects" type="b">
+      <default>false</default>
+      <summary>Use fewer particles and shorter animations</summary>
+    </key>
+    <key name="show-rune-name" type="b">
+      <default>true</default>
+      <summary>Show the spell name when a rune is cast</summary>
+    </key>
+
+    <!-- Spells bound to runes -->
+    <key name="rune-spiral" type="s"><default>'fireball'</default><summary>Spell for the spiral rune</summary></key>
+    <key name="rune-lightning" type="s"><default>'lightning'</default><summary>Spell for the lightning rune</summary></key>
+    <key name="rune-circle" type="s"><default>'portal'</default><summary>Spell for the circle rune</summary></key>
+    <key name="rune-v" type="s"><default>'freeze'</default><summary>Spell for the V rune</summary></key>
+    <key name="rune-caret" type="s"><default>'summon'</default><summary>Spell for the Λ rune</summary></key>
+    <key name="rune-u" type="s"><default>'enchant'</default><summary>Spell for the U rune</summary></key>
+    <key name="rune-line" type="s"><default>'slumber'</default><summary>Spell for the line-down rune</summary></key>
+    <key name="rune-commands" type="a{ss}">
+      <default>{}</default>
+      <summary>Custom command for each rune bound to "Custom Command"</summary>
+    </key>
+
+    <!-- Spell options -->
+    <key name="lightning-app" type="s">
+      <default>'Godot.desktop'</default>
+      <summary>App the Lightning Strike launches</summary>
+    </key>
+    <key name="enchant-mode" type="s">
+      <choices><choice value="quicklofi"/><choice value="any-player"/><choice value="command"/></choices>
+      <default>'quicklofi'</default>
+      <summary>What Enchant controls</summary>
+    </key>
+    <key name="enchant-command" type="s">
+      <default>''</default>
+      <summary>Command Enchant runs in command mode</summary>
+    </key>
+    <key name="slumber-curtain-ms" type="i">
+      <range min="500" max="6000"/>
+      <default>1500</default>
+      <summary>How long the Slumber curtain takes (time to cancel)</summary>
+    </key>
+    <key name="slumber-wake-sparkle" type="b">
+      <default>true</default>
+      <summary>Sparkle when the PC wakes up after Slumber</summary>
+    </key>
+
+    <!-- Familiar -->
+    <key name="familiar-visible" type="b">
+      <default>false</default>
+      <summary>Whether the familiar is summoned</summary>
+    </key>
+    <key name="familiar-type" type="s">
+      <choices><choice value="wisp"/><choice value="owl"/><choice value="dragon"/></choices>
+      <default>'wisp'</default>
+      <summary>Which familiar</summary>
+    </key>
+    <key name="familiar-mode" type="s">
+      <choices><choice value="follow"/><choice value="perch"/><choice value="wander"/></choices>
+      <default>'follow'</default>
+      <summary>How the familiar moves</summary>
+    </key>
+    <key name="familiar-size" type="i">
+      <range min="16" max="96"/>
+      <default>36</default>
+      <summary>Familiar size in pixels</summary>
+    </key>
+    <key name="familiar-opacity" type="d">
+      <range min="0.2" max="1"/>
+      <default>0.9</default>
+      <summary>Familiar opacity</summary>
+    </key>
+    <key name="familiar-hide-fullscreen" type="b">
+      <default>true</default>
+      <summary>Hide the familiar while something is fullscreen</summary>
+    </key>
+    <key name="familiar-react-cpu" type="b">
+      <default>true</default>
+      <summary>Familiar glows with CPU load</summary>
+    </key>
+    <key name="familiar-nap" type="b">
+      <default>true</default>
+      <summary>Familiar naps when you are idle</summary>
+    </key>
+    <key name="familiar-nap-minutes" type="i">
+      <range min="1" max="60"/>
+      <default>3</default>
+      <summary>Idle minutes before the familiar naps</summary>
+    </key>
+  </schema>
+</schemalist>

@@ -1,0 +1,334 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// Test driver for Spellcaster. Only ever loaded by tools/headless-test.sh
+// inside a throwaway headless GNOME Shell. It draws runes with a virtual
+// mouse, takes screenshots, and checks what happened.
+//
+// Suspend and lock are replaced with fakes so the test can never put the
+// real computer to sleep.
+
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
+
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
+import * as Util from 'resource:///org/gnome/shell/misc/util.js';
+
+Gio._promisify(Shell.Screenshot.prototype, 'screenshot');
+
+const OUT = GLib.getenv('SPELLTEST_OUT');
+const REPO = GLib.getenv('SPELLTEST_REPO');
+const UUID = 'spellcaster@gamerdolphin.github.io';
+
+const sleep = ms => new Promise(r => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+    r();
+    return GLib.SOURCE_REMOVE;
+}));
+const log = m => console.log(`SPELLTEST ${m}`);
+const results = [];
+function check(name, ok, detail = '') {
+    results.push({name, ok: !!ok, detail: String(detail)});
+    log(`${ok ? 'PASS' : 'FAIL'} ${name} ${detail}`);
+}
+
+async function shot(name) {
+    try {
+        const file = Gio.File.new_for_path(`${OUT}/${name}.png`);
+        const stream = file.replace(null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
+        await new Shell.Screenshot().screenshot(false, stream);
+        stream.close(null);
+    } catch (e) {
+        log(`screenshot ${name} failed: ${e}`);
+    }
+}
+
+let pointer, keyboard;
+const now = () => GLib.get_monotonic_time();
+const moveTo = (x, y) => pointer.notify_absolute_motion(now(), x, y);
+const press = () => pointer.notify_button(now(), Clutter.BUTTON_PRIMARY, Clutter.ButtonState.PRESSED);
+const release = () => pointer.notify_button(now(), Clutter.BUTTON_PRIMARY, Clutter.ButtonState.RELEASED);
+
+function key(keyval, pressed) {
+    keyboard.notify_keyval(now(), keyval, pressed ? Clutter.KeyState.PRESSED : Clutter.KeyState.RELEASED);
+}
+
+/** Rune guide path scaled to a box, with a point every ~5px. */
+function runePath(runes, id, cx, cy, size) {
+    const g = runes.runeGuide(id).map(p => ({x: cx + (p.x - 0.5) * size, y: cy + (p.y - 0.5) * size}));
+    const out = [g[0]];
+    for (let i = 1; i < g.length; i++) {
+        const a = g[i - 1], b = g[i];
+        const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 5));
+        for (let k = 1; k <= n; k++)
+            out.push({x: a.x + (b.x - a.x) * k / n, y: a.y + (b.y - a.y) * k / n});
+    }
+    return out;
+}
+
+async function drawStroke(points, {shotAt = -1, shotName = ''} = {}) {
+    moveTo(points[0].x, points[0].y);
+    await sleep(40);
+    press();
+    await sleep(16);
+    for (let i = 1; i < points.length; i++) {
+        moveTo(points[i].x, points[i].y);
+        await sleep(6);
+        if (i === shotAt)
+            await shot(shotName);
+    }
+    await sleep(16);
+    release();
+}
+
+function sc() {
+    return Main.extensionManager.lookup(UUID)?.stateObj;
+}
+
+async function cast(runes, id, cx, cy, size = 320, opts = {}) {
+    sc()._overlay.begin();
+    await sleep(250);
+    const pts = runePath(runes, id, cx, cy, size);
+    await drawStroke(pts, {shotAt: opts.shotName ? Math.floor(pts.length * 0.8) : -1, shotName: opts.shotName});
+}
+
+function testWindows() {
+    return global.get_window_actors()
+        .map(a => a.get_meta_window())
+        .filter(w => w.get_title()?.startsWith('🪟') || w.get_wm_class() === 'gjs' || (w.get_title() ?? '').includes('Window'));
+}
+
+function spawnWindow(title) {
+    Util.spawn(['gjs', '-m', `${REPO}/tools/test-window.js`, title]);
+}
+
+async function waitFor(fn, ms = 5000) {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+        if (fn())
+            return true;
+        await sleep(100);
+    }
+    return fn();
+}
+
+function countUiChildren() {
+    return Main.layoutManager.uiGroup.get_n_children();
+}
+
+async function run() {
+    const runes = await import(`file://${encodeURI(REPO)}/spellcaster@gamerdolphin.github.io/lib/runes.js`);
+    const seat = Clutter.get_default_backend().get_default_seat();
+    pointer = seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+    keyboard = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
+
+    // Never really suspend or lock.
+    const sa = SystemActions.getDefault();
+    let suspends = 0, locks = 0;
+    sa.activateSuspend = () => suspends++;
+    sa.activateLockScreen = () => locks++;
+
+    const m = Main.layoutManager.primaryMonitor;
+    const cx = m.x + m.width / 2, cy = m.y + m.height / 2;
+
+    if (Main.overview.visible) {
+        Main.overview.hide();
+        await sleep(800);
+    }
+
+    const ext = Main.extensionManager.lookup(UUID);
+    check('extension loaded', ext && ext.state === 1, `state=${ext?.state} error=${ext?.error ?? ''}`);
+    if (!ext || ext.state !== 1) {
+        finish();
+        return;
+    }
+    const settings = sc()._settings;
+    settings.set_boolean('familiar-visible', false);
+    await shot('00-desktop');
+
+    // Keyboard shortcut opens cast mode.
+    key(Clutter.KEY_Super_L, true);
+    key(Clutter.KEY_z, true);
+    key(Clutter.KEY_z, false);
+    key(Clutter.KEY_Super_L, false);
+    await sleep(400);
+    check('Super+Z starts casting', sc()._overlay.active);
+    await shot('01-cast-mode');
+    key(Clutter.KEY_Escape, true);
+    key(Clutter.KEY_Escape, false);
+    await sleep(400);
+    check('Esc cancels casting', !sc()._overlay.active);
+
+    // Windows to play with.
+    spawnWindow('Window A');
+    await sleep(600);
+    spawnWindow('Window B');
+    await sleep(600);
+    spawnWindow('Window C');
+    const gotWindows = await waitFor(() => testWindows().length >= 3, 15000);
+    await sleep(1200);
+    check('test windows opened', gotWindows, `count=${testWindows().length}`);
+    await shot('02-windows');
+
+    // Fizzle.
+    sc()._overlay.begin();
+    await sleep(200);
+    const junk = [];
+    for (let i = 0; i <= 60; i++)
+        junk.push({x: cx - 200 + i * 7, y: cy + Math.sin(i / 3) * 4 + 200});
+    await drawStroke(junk);
+    await sleep(120);
+    await shot('03-fizzle');
+    check('junk stroke fizzles (overlay closed)', !sc()._overlay.active);
+    await sleep(900);
+
+    // Fireball on the top window.
+    const before = testWindows().length;
+    const top = testWindows().filter(w => !w.minimized).at(-1);
+    const r = top.get_frame_rect();
+    await cast(runes, 'spiral', r.x + r.width / 2, r.y + r.height / 2, 260, {shotName: '04-spiral-trail'});
+    await sleep(350);
+    await shot('05-fireball');
+    const closed = await waitFor(() => testWindows().length === before - 1, 4000);
+    check('Fireball closes the window under the spiral', closed, `before=${before} after=${testWindows().length}`);
+    await sleep(800);
+
+    // Portal: swallow and release.
+    await cast(runes, 'circle', cx, cy, 300);
+    await sleep(350);
+    await shot('06-portal');
+    const allMin = await waitFor(() => testWindows().every(w => w.minimized), 3000);
+    check('Portal minimizes every window', allMin, testWindows().map(w => w.minimized).join(','));
+    await sleep(1200);
+    await cast(runes, 'circle', cx, cy, 300);
+    await sleep(500);
+    await shot('07-portal-release');
+    const back = await waitFor(() => testWindows().every(w => !w.minimized), 3000);
+    check('Second Portal brings the windows back', back, testWindows().map(w => w.minimized).join(','));
+    await sleep(1000);
+    const scaled = testWindows().map(w => w.get_compositor_private()).filter(a => a && (a.scale_x !== 1 || a.opacity !== 255));
+    check('Restored windows look normal again', scaled.length === 0, `odd=${scaled.length}`);
+
+    // Lightning launches the chosen app.
+    settings.set_string('lightning-app', 'spellcaster-testwin.desktop');
+    const n0 = testWindows().length;
+    await cast(runes, 'lightning', cx - 300, cy, 300);
+    await sleep(120);
+    await shot('08-lightning');
+    const launched = await waitFor(() => testWindows().length > n0, 12000);
+    check('Lightning Strike launches the app', launched, `before=${n0} after=${testWindows().length}`);
+    await sleep(1000);
+
+    // Summon the familiar with the Λ rune.
+    await cast(runes, 'caret', cx + 250, cy - 100, 260);
+    await sleep(900);
+    check('Summon rune brings out the familiar', settings.get_boolean('familiar-visible') && sc()._familiar.visible);
+    moveTo(cx - 400, cy + 200);
+    await sleep(1500);
+    await shot('09-familiar-wisp');
+    settings.set_string('familiar-type', 'owl');
+    await sleep(1200);
+    await shot('10-familiar-owl');
+    settings.set_string('familiar-type', 'dragon');
+    await sleep(1200);
+    await shot('11-familiar-dragon');
+    settings.set_int('familiar-size', 48);
+    await sleep(800);
+    await shot('11b-familiar-bigger');
+
+    // Enchant.
+    await cast(runes, 'u', cx, cy, 300);
+    await sleep(900);
+    await shot('12-enchant');
+    await sleep(1500);
+
+    // Freeze (fake lock).
+    await cast(runes, 'v', cx, cy, 300);
+    await sleep(650);
+    await shot('13-freeze');
+    await waitFor(() => locks > 0, 3000);
+    check('Freeze locks the screen', locks === 1, `locks=${locks}`);
+    await sleep(1200);
+
+    // Slumber, cancelled by a click.
+    settings.set_int('slumber-curtain-ms', 1500);
+    await cast(runes, 'line', cx, cy, 300);
+    await sleep(700);
+    await shot('14-slumber-curtain');
+    moveTo(cx, cy);
+    press();
+    release();
+    await sleep(2200);
+    check('Clicking during the curtain cancels Slumber', suspends === 0, `suspends=${suspends}`);
+    await shot('15-slumber-cancelled');
+
+    // Slumber for real (fake suspend).
+    await cast(runes, 'line', cx, cy, 300);
+    await waitFor(() => suspends > 0, 4000);
+    check('Slumber suspends', suspends === 1, `suspends=${suspends}`);
+    await sleep(2500);
+    await shot('16-after-slumber');
+
+    // Dismiss the familiar.
+    await cast(runes, 'caret', cx, cy, 260);
+    await sleep(800);
+    check('Summon rune again dismisses the familiar', !settings.get_boolean('familiar-visible') && !sc()._familiar.visible);
+
+    // Disable / enable leaves nothing behind.
+    settings.set_boolean('familiar-visible', true);
+    await sleep(800);
+    const kids = countUiChildren();
+    Main.extensionManager.disableExtension(UUID);
+    await sleep(600);
+    const kidsOff = countUiChildren();
+    check('Disabling removes everything it added', kidsOff <= kids - 2, `with=${kids} without=${kidsOff}`);
+    Main.extensionManager.enableExtension(UUID);
+    await sleep(1200);
+    const e2 = Main.extensionManager.lookup(UUID);
+    check('Re-enabling works', e2.state === 1 && sc()._familiar.visible, `state=${e2.state}`);
+    settings.set_boolean('familiar-visible', false);
+
+    // Spellbook window.
+    Util.spawn(['gnome-extensions', 'prefs', UUID]);
+    const prefsUp = await waitFor(() => global.get_window_actors().some(a => (a.get_meta_window().get_title() ?? '').includes('Spellcaster')), 15000);
+    await sleep(2500);
+    check('Spellbook opens', prefsUp);
+    await shot('17-spellbook');
+
+    finish();
+}
+
+function finish() {
+    const file = Gio.File.new_for_path(`${OUT}/results.json`);
+    file.replace_contents(new TextEncoder().encode(JSON.stringify(results, null, 2)), null, false,
+        Gio.FileCreateFlags.REPLACE_DESTINATION, null);
+    log('DONE');
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+        Meta.exit(Meta.ExitCode.SUCCESS);
+        return GLib.SOURCE_REMOVE;
+    });
+}
+
+let started = false;
+
+export default class TestDriver extends Extension {
+    enable() {
+        // GNOME re-enables later extensions when one is toggled; run once.
+        if (started)
+            return;
+        started = true;
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 4000, () => {
+            run().catch(e => {
+                log(`CRASH ${e}\n${e.stack}`);
+                check('test driver crashed', false, e);
+                finish();
+            });
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    disable() {}
+}

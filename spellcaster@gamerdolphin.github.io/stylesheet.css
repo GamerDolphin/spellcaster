@@ -1,0 +1,49 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+.spellcaster-overlay {
+    background-color: rgba(12, 0, 30, 0.22);
+}
+
+.spellcaster-wand-tip {
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.95);
+}
+
+.spellcaster-particle {
+    border-radius: 999px;
+}
+
+.spellcaster-label {
+    font-size: 20pt;
+    font-weight: 800;
+    color: #ffffff;
+    text-shadow: 0 0 10px rgba(200, 140, 255, 0.95);
+    background-color: rgba(22, 6, 44, 0.72);
+    border-radius: 999px;
+    padding: 8px 22px;
+    box-shadow: 0 0 24px 4px rgba(150, 90, 255, 0.45);
+}
+
+.spellcaster-label-fizzle {
+    font-size: 13pt;
+    font-weight: 700;
+    color: rgba(225, 210, 255, 0.95);
+    background-color: rgba(40, 30, 60, 0.65);
+    border-radius: 999px;
+    padding: 5px 16px;
+}
+
+.spellcaster-countdown {
+    font-size: 15pt;
+    font-weight: 600;
+    color: rgba(235, 225, 255, 0.95);
+    background-color: rgba(20, 10, 40, 0.75);
+    border-radius: 999px;
+    padding: 8px 22px;
+}
+
+.spellcaster-zzz {
+    font-size: 11pt;
+    font-weight: 800;
+    color: rgba(200, 220, 255, 0.9);
+}
