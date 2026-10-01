@@ -245,17 +245,35 @@ async function run() {
     await shot('12-enchant');
     await sleep(1500);
 
-    // Freeze (fake lock).
+    // Freeze asks first.
+    settings.set_int('confirm-seconds', 10);
     await cast(runes, 'v', cx, cy, 300);
+    await sleep(1300);
+    check('Freeze asks before locking', sc()._confirmDialog?.open && locks === 0);
+    await shot('13a-confirm-freeze');
+    sc()._confirmDialog.confirm();
     await sleep(650);
     await shot('13-freeze');
     await waitFor(() => locks > 0, 3000);
-    check('Freeze locks the screen', locks === 1, `locks=${locks}`);
+    check('Confirming Freeze locks the screen', locks === 1, `locks=${locks}`);
     await sleep(1200);
 
-    // Slumber, cancelled by a click.
+    // Doing nothing cancels it.
+    settings.set_int('confirm-seconds', 3);
+    await cast(runes, 'v', cx, cy, 300);
+    await sleep(1100);
+    const asked = sc()._confirmDialog?.open;
+    await sleep(3500);
+    check('Ignoring the popup cancels Freeze', asked && !sc()._confirmDialog && locks === 1, `locks=${locks}`);
+    settings.set_int('confirm-seconds', 10);
+
+    // Slumber: confirm, then cancel during the curtain with a click.
     settings.set_int('slumber-curtain-ms', 1500);
     await cast(runes, 'line', cx, cy, 300);
+    await sleep(1200);
+    check('Slumber asks before sleeping', sc()._confirmDialog?.open && suspends === 0);
+    await shot('14a-confirm-slumber');
+    sc()._confirmDialog.confirm();
     await sleep(700);
     await shot('14-slumber-curtain');
     moveTo(cx, cy);
@@ -267,8 +285,10 @@ async function run() {
 
     // Slumber for real (fake suspend).
     await cast(runes, 'line', cx, cy, 300);
+    await sleep(1200);
+    sc()._confirmDialog?.confirm();
     await waitFor(() => suspends > 0, 4000);
-    check('Slumber suspends', suspends === 1, `suspends=${suspends}`);
+    check('Confirming Slumber suspends', suspends === 1, `suspends=${suspends}`);
     await sleep(2500);
     await shot('16-after-slumber');
 

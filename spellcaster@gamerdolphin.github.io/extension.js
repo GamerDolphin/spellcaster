@@ -10,6 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as LoginManager from 'resource:///org/gnome/shell/misc/loginManager.js';
 
 import {CastOverlay} from './lib/castOverlay.js';
+import {confirmSpell} from './lib/confirm.js';
 import {Familiar} from './lib/familiar.js';
 import {Fx, Palette} from './lib/fx.js';
 import {RUNE_INFO, spellInfo} from './lib/runes.js';
@@ -22,6 +23,12 @@ import * as Summon from './spells/summon.js';
 import * as Enchant from './spells/enchant.js';
 import * as Slumber from './spells/slumber.js';
 import * as Extras from './spells/extras.js';
+
+// Spells big enough to ask "are you sure?" first.
+const CONFIRM = {
+    freeze: {title: '❄️ Freeze?', body: 'This will lock your screen.', confirmLabel: 'Freeze'},
+    slumber: {title: '🌙 Slumber?', body: 'Your PC will go to sleep. Nothing gets closed.', confirmLabel: 'Sleep'},
+};
 
 const SPELLS = {
     'fireball': Fireball.cast,
@@ -74,6 +81,8 @@ export default class SpellcasterExtension extends Extension {
 
     disable() {
         // Runs on the lock screen too (Freeze, Slumber), so clean up everything.
+        this._confirmDialog?.destroy();
+        this._confirmDialog = null;
         Main.wm.removeKeybinding('cast-shortcut');
         LoginManager.getLoginManager().disconnect(this._sleepId);
         this._overlay.destroy();
@@ -102,19 +111,50 @@ export default class SpellcasterExtension extends Extension {
         if (spellId !== 'summon')
             this._familiar.onCastSuccess();
 
+        const ctx = {
+            rune,
+            result,
+            colors,
+            monitor,
+            settings: this._settings,
+            fx: this._fx,
+            familiar: this._familiar,
+            onSlumber: () => {
+                wakeSparklePending = this._settings.get_boolean('slumber-wake-sparkle');
+            },
+        };
+
+        const ask = CONFIRM[spellId];
+        if (ask && this._settings.get_boolean('confirm-big-spells')) {
+            this._confirmDialog?.destroy();
+            // Let the cast sigil fade first so it doesn't cover the popup.
+            this._fx.later(750, () => this._askFirst(ask, spellId, spell, ctx));
+            return;
+        }
+        this._runSpell(spellId, spell, ctx);
+    }
+
+    _askFirst(ask, spellId, spell, ctx) {
+        this._confirmDialog = confirmSpell({
+            ...ask,
+            seconds: this._settings.get_int('confirm-seconds'),
+            onConfirm: () => {
+                this._confirmDialog = null;
+                this._runSpell(spellId, spell, ctx);
+            },
+            onCancel: () => {
+                this._confirmDialog = null;
+                const {x, y} = ctx.result.info.center;
+                this._fx?.smoke(x, y, 6);
+            },
+        });
+    }
+
+    _runSpell(spellId, spell, ctx) {
+        if (!this._fx)
+            return;
         try {
-            spell({
-                rune,
-                result,
-                colors,
-                monitor,
-                settings: this._settings,
-                fx: this._fx,
-                familiar: this._familiar,
-                onSlumber: () => {
-                    wakeSparklePending = this._settings.get_boolean('slumber-wake-sparkle');
-                },
-            });
+            spell(ctx);
         } catch (e) {
             console.error(`Spellcaster: ${spellId} failed: ${e}\n${e.stack}`);
             Main.notify('Spellcaster', `The ${spellInfo(spellId).name} spell failed: ${e.message}`);

@@ -68,13 +68,18 @@ export const generators = {
         return out;
     },
     lightning() {
-        const shape = pick([
+        let shape = pick([
             [[0, 0], [1, 0], [0, 1], [1, 1]], // Z
             [[0.6, 0], [0.15, 0.5], [0.75, 0.5], [0.3, 1]], // bolt
             [[0, 0], [1, 0.33], [0, 0.66], [1, 1]], // zig-zag down
             [[0.7, 0], [0.2, 0.45], [0.6, 0.55], [0.1, 1]],
             [[0, 0], [0.7, 0.3], [0.2, 0.55], [0.9, 0.8], [0.4, 1.1]], // long bolt
-        ]).map(([x, y]) => [x * between(0.8, 1.3) + between(-0.05, 0.05), y + between(-0.05, 0.05)]);
+        ]);
+        // Bolts drawn tall and skinny are common, so squash the width sometimes.
+        // (Much thinner than ~1/3 of the height and a bolt really is a wobbly
+        // line, which is why Slumber asks before sleeping.)
+        const squash = rand() < 0.4 ? between(0.36, 0.55) : between(0.8, 1.3);
+        shape = shape.map(([x, y]) => [x * squash + between(-0.04, 0.04), y + between(-0.05, 0.05)]);
         if (rand() < 0.5)
             shape.forEach(p => (p[0] = 1 - p[0])); // mirrored bolt
         return roundCorners(polyline(shape), 2);
@@ -84,14 +89,16 @@ export const generators = {
         const wid = between(0.5, 1.4);
         const lh = between(0.8, 1.1), rh = between(0.8, 1.1);
         const pts = polyline([[0, 1 - lh], [apex * wid, 1], [wid, 1 - rh]]);
-        return roundCorners(rand() < 0.3 ? pts.reverse() : pts, 2);
+        // Some V's get a softly rounded tip.
+        return roundCorners(rand() < 0.3 ? pts.reverse() : pts, rand() < 0.3 ? 6 : 2);
     },
     caret() {
         return generators.v().map(p => ({x: p.x, y: 1 - p.y}));
     },
     u() {
-        const side = between(0, 0.8);
-        const wid = between(0.7, 1.4);
+        const side = between(0, 0.9);
+        // Quick U's are often narrow with a tight bottom.
+        const wid = rand() < 0.4 ? between(0.3, 0.6) : between(0.7, 1.4);
         const out = [];
         for (let i = 0; i <= 10; i++)
             out.push({x: -wid, y: -side + side * i / 10});

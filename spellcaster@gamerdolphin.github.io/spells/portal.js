@@ -11,7 +11,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {destroyer, mix} from '../lib/fx.js';
-import {actorCenter, resetActor, workspaceWindows} from '../lib/windowUtils.js';
+import {actorCenter, minimizableWindows, resetActor} from '../lib/windowUtils.js';
 
 const SUCK_MS = 560;
 const STAGGER_MS = 45;
@@ -106,7 +106,7 @@ function portalRing(fx, x, y, radius, colors, reverse) {
 }
 
 function swallow(ctx, center) {
-    const wins = workspaceWindows();
+    const wins = minimizableWindows();
     portalRing(ctx.fx, center.x, center.y, 150, ctx.colors, false);
 
     wins.forEach((win, i) => {

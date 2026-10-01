@@ -10,7 +10,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
 
-import {Palette, rand} from '../lib/fx.js';
+import {Palette, destroyer, rand} from '../lib/fx.js';
 
 const FROST_MS = 950;
 
@@ -78,8 +78,8 @@ export function cast(ctx) {
         // The extension is switched off on the lock screen anyway, but
         // clean up in case locking is disabled.
         fx.later(800, () => {
-            for (const p of pieces)
-                p.destroy();
+            for (const done of pieces.map(destroyer))
+                done();
         });
     });
 }

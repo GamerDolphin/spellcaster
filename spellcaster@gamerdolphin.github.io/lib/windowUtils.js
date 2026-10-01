@@ -26,6 +26,11 @@ export function workspaceWindows() {
         .filter(w => isUserWindow(w, ws));
 }
 
+/** Windows the Portal can swallow (some dialogs refuse to minimize). */
+export function minimizableWindows() {
+    return workspaceWindows().filter(w => w.can_minimize());
+}
+
 /** The topmost normal window under a screen point, or null. */
 export function windowAt(x, y) {
     const wins = workspaceWindows();

@@ -47,3 +47,18 @@
     font-weight: 800;
     color: rgba(200, 220, 255, 0.9);
 }
+
+/* The "are you sure?" popup for Freeze and Slumber. */
+.modal-dialog.spellcaster-confirm {
+    background-color: rgba(26, 12, 48, 0.97);
+    border: 1px solid rgba(185, 130, 255, 0.55);
+    box-shadow: 0 0 40px 4px rgba(150, 90, 255, 0.45);
+}
+
+.spellcaster-confirm .message-dialog-title {
+    color: #f1e6ff;
+}
+
+.spellcaster-confirm .message-dialog-description {
+    color: rgba(230, 215, 255, 0.85);
+}

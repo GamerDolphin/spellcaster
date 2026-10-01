@@ -61,6 +61,15 @@
       <default>''</default>
       <summary>Command Enchant runs in command mode</summary>
     </key>
+    <key name="confirm-big-spells" type="b">
+      <default>true</default>
+      <summary>Ask before Freeze and Slumber</summary>
+    </key>
+    <key name="confirm-seconds" type="i">
+      <range min="3" max="60"/>
+      <default>10</default>
+      <summary>Seconds before the confirm popup cancels itself</summary>
+    </key>
     <key name="slumber-curtain-ms" type="i">
       <range min="500" max="6000"/>
       <default>1500</default>

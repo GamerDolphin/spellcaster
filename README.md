@@ -22,6 +22,8 @@ Every rune is **one quick stroke**. You never lift the mouse, and there are no s
 
 Esc or a right-click cancels casting. A stroke that isn't a rune just **fizzles**.
 
+🛡️ **Freeze and Slumber ask first.** A small popup with **Cancel** / **Freeze** (or **Sleep**) appears, and it cancels itself after 10 seconds if you do nothing, so a mis-drawn rune never locks or sleeps your PC. You can turn this off or change the timer in the Spellbook.
+
 Any rune can be rebound in the Spellbook to: Snapshot (screenshot), Scry (overview), Step Left/Right (workspaces), a custom command, or nothing.
 
 | | |

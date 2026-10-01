@@ -148,7 +148,9 @@ export function measure(rawPoints) {
     }
 
     // Corners from a simplified polyline (for lightning).
-    const keep = [...rdp(pts, diag * 0.07)].sort((a, b) => a - b);
+    // Corner detail scales with the stroke, but tall skinny strokes use
+    // their width so a narrow zig-zag's corners still count.
+    const keep = [...rdp(pts, Math.max(5, Math.min(diag * 0.07, w * 0.22)))].sort((a, b) => a - b);
     const corners = [];
     for (let k = 1; k < keep.length - 1; k++) {
         const p0 = pts[keep[k - 1]], p1 = pts[keep[k]], p2 = pts[keep[k + 1]];
@@ -202,6 +204,25 @@ export function measure(rawPoints) {
     }
 
     const hSafe = Math.max(h, diag * 0.25);
+    const wSafe = Math.max(w, diag * 0.25);
+
+    // How wide the stroke is just above its lowest point (and just below
+    // its highest). A V is pointy there, a U is round and wide.
+    const spanNear = keepFn => {
+        const xs = pts.filter(keepFn).map(p => p.x);
+        return xs.length ? (Math.max(...xs) - Math.min(...xs)) / wSafe : 0;
+    };
+    const bottomSpan = spanNear(p => p.y >= pts[lowIdx].y - 0.22 * hSafe);
+    const topSpan = spanNear(p => p.y <= pts[highIdx].y + 0.22 * hSafe);
+
+    // Furthest the stroke strays from the straight start→end line.
+    let maxDev = 0;
+    if (chord > 0) {
+        for (const p of pts) {
+            const d = Math.abs((end.x - start.x) * (start.y - p.y) - (start.x - p.x) * (end.y - start.y)) / chord;
+            maxDev = Math.max(maxDev, d);
+        }
+    }
     return {
         pts, start, end, len, chord, w, h, diag,
         bbox: {x: minX, y: minY, width: w, height: h},
@@ -226,6 +247,9 @@ export function measure(rawPoints) {
         caretDepth: mainCorner ? (Math.min(start.y, end.y) - pts[mainCorner.index].y) / hSafe : 0,
         // How far the lowest point sits below both ends (U opens upward).
         uDepth: (pts[lowIdx].y - Math.max(start.y, end.y)) / hSafe,
+        bottomSpan,
+        topSpan,
+        deviation: len > 0 ? maxDev / len : 0,
         lowMid: lowIdx > n * 0.2 && lowIdx < n * 0.8,
         highMid: highIdx > n * 0.2 && highIdx < n * 0.8,
     };
@@ -235,7 +259,10 @@ export function measure(rawPoints) {
 export function score(m) {
     const s = {};
 
-    s.line = ramp(m.straightness, 0.82, 0.94) * ramp(m.downness, 0.70, 0.88);
+    // A line must be really straight: a skinny zig-zag is lightning, not a line.
+    s.line = ramp(m.straightness, 0.86, 0.95) * ramp(m.downness, 0.70, 0.88) *
+        (1 - ramp(m.deviation, 0.05, 0.1)) *
+        (m.alternating >= 2 ? 0 : 1);
 
     const loopy = ramp(m.consistency, 0.55, 0.78);
     s.circle = ramp(m.turning, 250, 310) *
@@ -248,23 +275,31 @@ export function score(m) {
     const oneTurnSpiral = ramp(m.turning, 300, 380) * ramp(m.radVar, 0.28, 0.42) * ramp(m.gap, 0.3, 0.5);
     // An over-drawn circle turns a lot but keeps a steady radius.
     const notCircle = m.turning > 620 ? 1 : ramp(m.radVar, 0.10, 0.2);
-    s.spiral = Math.max(manyTurns * notCircle, oneTurnSpiral) * loopy;
+    // Loops never zig-zag back and forth.
+    const zigzag = m.alternating >= 2 ? 0 : 1;
+    s.circle *= zigzag;
+    s.spiral = Math.max(manyTurns * notCircle, oneTurnSpiral) * loopy * zigzag;
 
+    // Two or more back-and-forth corners is the giveaway. Tall skinny bolts
+    // have small turns and look fairly straight, so be generous there.
     s.lightning = ramp(m.alternating, 1.5, 2) *
-        ramp(m.absolute, 170, 230) *
+        ramp(m.absolute, 95, 140) *
         (1 - ramp(m.consistency, 0.55, 0.8)) *
-        (1 - ramp(m.straightness, 0.85, 0.95));
+        (1 - ramp(m.straightness, 0.93, 0.98)) *
+        ramp(m.deviation, 0.025, 0.05);
 
     const oneCorner = ramp(m.mainCornerTurn, 70, 100) *
         (m.cornerCount === 1 ? 1 : 0) *
         (1 - ramp(m.straightness, 0.8, 0.92));
-    s.v = oneCorner * ramp(m.vDepth, 0.35, 0.65);
-    s.caret = oneCorner * ramp(m.caretDepth, 0.35, 0.65);
+    // Pointy tip = V / Λ. A round, wide bottom is a U (and a round top is
+    // just an arch, which isn't a rune).
+    s.v = oneCorner * ramp(m.vDepth, 0.35, 0.65) * (1 - ramp(m.bottomSpan, 0.36, 0.52));
+    s.caret = oneCorner * ramp(m.caretDepth, 0.35, 0.65) * (1 - ramp(m.topSpan, 0.36, 0.52));
 
     s.u = ramp(m.turning, 110, 145) *
         (1 - ramp(m.turning, 250, 290)) *
         ramp(m.consistency, 0.6, 0.8) *
-        (1 - ramp(m.sharpRatio, 0.5, 0.72)) *
+        ramp(m.bottomSpan, 0.36, 0.52) *
         ramp(m.uDepth, 0.35, 0.65) *
         (m.lowMid ? 1 : 0);
 
