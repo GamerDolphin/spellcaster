@@ -29,6 +29,12 @@ Any rune can be rebound in the Spellbook to: Snapshot (screenshot), Scry (overvi
 | ![Fireball](docs/screenshots/fireball.png) | ![Portal](docs/screenshots/portal.png) |
 | ![Lightning Strike](docs/screenshots/lightning.png) | ![Freeze](docs/screenshots/freeze.png) |
 
+## Effects
+
+Every effect uses a hand-built texture set: glowing orbs, twinkling stars, flame licks, smoke, snowflakes, a magic sigil, a swirling vortex, a fireball and creeping frost. It's all **generated in code** by `tools/make-textures.js`, so there are no downloads or licences, and you can tweak the generator and run `make textures`.
+
+![The texture set](docs/screenshots/textures.png)
+
 ## Familiars
 
 ![Wisp, owl and tiny dragon](docs/screenshots/familiars.png)
@@ -94,6 +100,7 @@ spellcaster@gamerdolphin.github.io/
 |---|---|
 | `make check` | Syntax check plus the rune recognizer tests (2,800 sloppy fake strokes; each rune must be ≥95% accurate) |
 | `make test-shell` | Starts an **invisible, throwaway GNOME Shell**, draws every rune with a virtual mouse, checks the results and saves screenshots to `test-output/`. It never touches your real desktop or settings, and suspend/lock are faked |
+| `make textures` | Regenerates the effect textures in `assets/` |
 | `make pack` | Builds the zip for extensions.gnome.org |
 
 Logs: `journalctl -f -o cat /usr/bin/gnome-shell`

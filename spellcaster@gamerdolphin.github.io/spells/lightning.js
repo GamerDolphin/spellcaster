@@ -65,7 +65,16 @@ export function cast(ctx) {
     });
 
     fx.flash(m, [0.92, 0.95, 1], 0.55, 260);
-    fx.burst(end.x, end.y, {count: 30, colors: [[1, 1, 1], color, [0.7, 0.8, 1]], speed: 140, size: [2, 6]});
+    // Crackling glow along the bolt.
+    const step = Math.max(1, Math.floor(main.length / 14));
+    for (let i = 0; i < main.length; i += step) {
+        fx.particle({x: main[i].x, y: main[i].y, size: rand(5, 10), color: [0.88, 0.96, 1],
+            dx: rand(-10, 10), dy: rand(-10, 10), duration: rand(250, 450), endScale: 1.4});
+    }
+    // Impact: a ground ring, sparks and a few twinkles.
+    fx.shockwave(end.x, end.y, {color: color, size: 380, duration: 500});
+    fx.shockwave(end.x, end.y, {color: [1, 1, 1], size: 200, duration: 350});
+    fx.burst(end.x, end.y, {count: 36, colors: [[1, 1, 1], color, [0.65, 0.88, 1]], speed: 200, size: [2, 6], stars: 0.35, up: 40});
 
     // Flicker, then fade.
     const steps = [[60, 60], [255, 50], [90, 40], [255, 60], [0, 380]];

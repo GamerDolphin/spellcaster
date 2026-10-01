@@ -7,6 +7,10 @@ import {Palette} from '../lib/fx.js';
 
 export function cast(ctx) {
     const {x, y} = ctx.result.info.center;
-    ctx.fx.burst(x, y, {count: 36, colors: Palette.sparkle, speed: 110, up: 30});
-    ctx.familiar.toggle(x, y);
+    const {fx} = ctx;
+    fx.sigil(x, y, {colors: [[1, 0.85, 0.4], [0.68, 0.5, 1]], size: 300, hold: 500, spin: 200});
+    fx.shockwave(x, y, {color: [1, 0.85, 0.4], size: 360, duration: 700, delay: 250});
+    fx.burst(x, y, {count: 40, colors: Palette.sparkle, speed: 130, up: 40, stars: 0.5});
+    // The familiar steps out of the circle a moment later.
+    fx.later(280, () => ctx.familiar.toggle(x, y));
 }

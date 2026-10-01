@@ -175,14 +175,18 @@ export class CastOverlay {
         if (this._sinceSpark > SPARK_EVERY) {
             this._sinceSpark = 0;
             const c = Math.random() < 0.5 ? this._cast.colors[0] : this._cast.colors[1];
+            // Magic dust falling off the wand: mostly soft motes, some twinkles.
+            const star = Math.random() < 0.35;
             this._fx.particle({
-                x: x + (Math.random() - 0.5) * 6,
-                y: y + (Math.random() - 0.5) * 6,
-                dx: (Math.random() - 0.5) * 40,
-                dy: Math.random() * 30 + 5,
-                size: 2 + Math.random() * 4,
-                color: mix(c, [1, 1, 1], 0.3),
-                duration: 400 + Math.random() * 400,
+                kind: star ? 'sparkle' : 'orb',
+                x: x + (Math.random() - 0.5) * 8,
+                y: y + (Math.random() - 0.5) * 8,
+                dx: (Math.random() - 0.5) * 50,
+                dy: Math.random() * 40 + 8,
+                size: star ? 3 + Math.random() * 4 : 2 + Math.random() * 3,
+                color: mix(c, [1, 1, 1], 0.2),
+                spin: star ? (Math.random() - 0.5) * 300 : 0,
+                duration: 500 + Math.random() * 500,
             });
         }
         this._trail.queue_repaint();
@@ -262,14 +266,22 @@ export class CastOverlay {
             const pts = this._cast.points;
             const step = Math.max(1, Math.floor(pts.length / 26));
             for (let i = 0; i < pts.length; i += step) {
+                const star = i % 3 === 0;
                 this._fx.particle({
+                    kind: star ? 'sparkle' : 'orb',
                     x: pts[i].x, y: pts[i].y,
-                    dx: (Math.random() - 0.5) * 50, dy: -Math.random() * 50,
-                    size: 3 + Math.random() * 5,
-                    color: mix(colors[i % 2], [1, 1, 1], 0.3),
-                    duration: 500 + Math.random() * 500,
+                    dx: (Math.random() - 0.5) * 60, dy: -Math.random() * 60,
+                    size: star ? 5 + Math.random() * 4 : 3 + Math.random() * 4,
+                    color: mix(colors[i % 2], [1, 1, 1], 0.2),
+                    spin: star ? 180 : 0,
+                    duration: 600 + Math.random() * 500,
                 });
             }
+            // A magic circle flashes up behind the rune.
+            const {center, bbox} = result.info;
+            const size = Math.max(220, Math.min(520, Math.max(bbox.width, bbox.height) * 1.5));
+            this._fx.sigil(center.x, center.y, {colors, size, hold: 250});
+            this._fx.shockwave(center.x, center.y, {color: colors[0], size: size * 1.4, duration: 600});
             this._trail.set_pivot_point(0.5, 0.5);
             overlay.ease({opacity: 0, delay: 180, duration: 420, mode: Clutter.AnimationMode.EASE_OUT_QUAD, onStopped: done});
         } else {

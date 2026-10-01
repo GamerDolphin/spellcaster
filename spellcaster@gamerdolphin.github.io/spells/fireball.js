@@ -5,31 +5,38 @@
 
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
-import Graphene from 'gi://Graphene';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {Palette, destroyer, rgba} from '../lib/fx.js';
+import {Palette, destroyer} from '../lib/fx.js';
 import {resetActor, windowAt} from '../lib/windowUtils.js';
 
 const RESTORE_AFTER_MS = 1500;
 
+/** A roiling fireball sprite with a hot glow behind it. */
 function fireOrb(fx, x, y, size) {
-    const orb = fx.add(new St.Widget({
-        style: `background-color: ${rgba([1, 0.85, 0.4], 0.95)};` +
-            `border-radius: ${size}px;` +
-            `box-shadow: 0 0 ${size}px ${size / 2}px ${rgba([1, 0.4, 0.05], 0.9)};`,
-        width: size,
-        height: size,
-        x: x - size / 2,
-        y: y - size / 2,
-        pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
-        scale_x: 0.15,
-        scale_y: 0.15,
-        reactive: false,
-    }));
+    const orb = fx.sprite({texture: 'fireball', x, y, size, rotation: Math.random() * 360});
+    orb.set_scale(0.15, 0.15);
+    // Keep it churning.
+    orb.ease({rotation_angle_z: orb.rotation_angle_z + 540, duration: 1400, mode: Clutter.AnimationMode.LINEAR});
     return orb;
+}
+
+/** Embers peeling off a moving fireball. */
+function trailEmbers(fx, orb, ms) {
+    const end = Date.now() + ms;
+    const tick = () => {
+        if (Date.now() > end || !orb.get_parent())
+            return;
+        const cx = orb.x + orb.width / 2, cy = orb.y + orb.height / 2;
+        fx.particle({x: cx, y: cy, dx: (Math.random() - 0.5) * 40, dy: -Math.random() * 40,
+            size: 3 + Math.random() * 4, color: Palette.fire[Math.floor(Math.random() * 4)], duration: 500});
+        if (Math.random() < 0.3)
+            fx.smoke(cx, cy, 1, {tint: 'none'});
+        fx.later(30, tick);
+    };
+    tick();
 }
 
 export function cast(ctx) {
@@ -37,7 +44,7 @@ export function cast(ctx) {
     const {x, y} = result.info.center;
     const win = windowAt(x, y);
 
-    const orb = fireOrb(fx, x, y, 70);
+    const orb = fireOrb(fx, x, y, 150);
     const orbDone = destroyer(orb);
 
     if (!win) {
@@ -48,6 +55,7 @@ export function cast(ctx) {
         orb.ease({
             scale_x: 1, scale_y: 1, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_BACK,
             onComplete: () => {
+                trailEmbers(fx, orb, 700);
                 orb.ease({
                     x: orb.x + Math.cos(angle) * far,
                     y: orb.y + Math.sin(angle) * far,
@@ -70,13 +78,20 @@ export function cast(ctx) {
     let unmanaged = false;
     const unmanagedId = win.connect('unmanaged', () => (unmanaged = true));
 
-    // Fireball grows, then explodes against the window.
+    // Fireball swells, then explodes against the window.
     orb.ease({
-        scale_x: 1.6, scale_y: 1.6, opacity: 0, duration: 380,
-        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        onStopped: orbDone,
+        scale_x: 1, scale_y: 1, duration: 220, mode: Clutter.AnimationMode.EASE_OUT_BACK,
+        onComplete: () => {
+            orb.ease({scale_x: 2.4, scale_y: 2.4, opacity: 0, duration: 380,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD, onStopped: orbDone});
+            fx.shockwave(x, y, {color: [1, 0.55, 0.15], size: 420, duration: 550});
+            fx.burst(x, y, {count: 40, colors: Palette.fire, speed: 220, size: [3, 8], stars: 0.15});
+        },
+        onStopped: finished => {
+            if (!finished)
+                orbDone();
+        },
     });
-    fx.burst(x, y, {count: 34, colors: Palette.fire, speed: 160, size: [4, 10]});
 
     // Glow orange and shake.
     let burn;
@@ -128,7 +143,11 @@ export function cast(ctx) {
     };
 
     const burnAway = () => {
-        fx.embers(rect, 120);
+        fx.embers(rect, 110);
+        fx.later(500, () => {
+            for (let i = 0; i < 6; i++)
+                fx.smoke(rect.x + Math.random() * rect.width, rect.y + rect.height * (0.2 + Math.random() * 0.6), 2, {tint: 'none'});
+        });
         actor.ease({
             opacity: 0,
             scale_x: 0.88,

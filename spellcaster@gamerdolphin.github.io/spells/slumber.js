@@ -65,19 +65,24 @@ export function cast(ctx) {
     let dustTimer = 0;
     const dust = () => {
         for (const m of monitors) {
-            for (let i = 0; i < Math.round(6 * fx.amount) + 1; i++) {
+            for (let i = 0; i < Math.round(5 * fx.amount) + 1; i++) {
+                const star = Math.random() < 0.3;
                 fx.particle({
+                    kind: star ? 'sparkle' : 'orb',
                     x: m.x + Math.random() * m.width,
                     y: m.y + m.height - rand(0, m.height * 0.3),
-                    dx: rand(-20, 20),
-                    dy: -rand(100, 300),
-                    size: rand(2, 5),
+                    dx: rand(-25, 25),
+                    dy: -rand(120, 320),
+                    size: star ? rand(4, 7) : rand(2, 5),
                     color: Palette.dream[Math.floor(Math.random() * Palette.dream.length)],
-                    duration: rand(1200, 2000),
+                    spin: star ? rand(-90, 90) : 0,
+                    startScale: 1,
+                    endScale: 0.5,
+                    duration: rand(1400, 2200),
                 });
             }
         }
-        dustTimer = fx.later(120, dust);
+        dustTimer = fx.later(110, dust);
     };
     dust();
 

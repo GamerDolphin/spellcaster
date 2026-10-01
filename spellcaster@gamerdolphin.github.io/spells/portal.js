@@ -33,77 +33,81 @@ export function reset() {
     swallowed = [];
 }
 
+/**
+ * The portal: a dark eye, two counter-spinning vortex layers, a sigil
+ * ring around the rim, and motes of light being pulled in.
+ */
 function portalRing(fx, x, y, radius, colors, reverse) {
-    const size = Math.round(radius * 2.4);
-    const ring = fx.add(new St.DrawingArea({
+    const [c1, c2] = colors;
+    const size = Math.round(radius * 2.6);
+    const dir = reverse ? -1 : 1;
+    const LIFE = 1500;
+
+    const box = fx.add(new St.Widget({
         width: size, height: size,
         x: Math.round(x - size / 2), y: Math.round(y - size / 2),
         pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
-        scale_x: 0.05, scale_y: 0.05,
+        scale_x: 0.05, scale_y: 0.05, opacity: 0,
         reactive: false,
     }));
-    const [c1, c2] = colors;
-    ring.connect('repaint', a => {
-        const cr = a.get_context();
-        const c = size / 2;
-        cr.translate(c, c);
-        // Dark centre.
-        cr.setSourceRGBA(0.05, 0, 0.12, 0.85);
-        cr.arc(0, 0, radius * 0.55, 0, Math.PI * 2);
-        cr.fill();
-        // Swirling arms.
-        cr.setLineCap(1);
-        const arms = 6;
-        for (let k = 0; k < arms; k++) {
-            const base = (k / arms) * Math.PI * 2;
-            const col = mix(c1, c2, k / arms);
-            for (const [w, alpha] of [[10, 0.18], [5, 0.5], [2, 0.95]]) {
-                cr.setSourceRGBA(...col, alpha);
-                cr.setLineWidth(w);
-                for (let i = 0; i <= 40; i++) {
-                    const t = i / 40;
-                    const r = radius * (0.15 + 0.95 * t);
-                    const ang = base + t * Math.PI * 1.6;
-                    const px = Math.cos(ang) * r, py = Math.sin(ang) * r;
-                    if (i === 0)
-                        cr.moveTo(px, py);
-                    else
-                        cr.lineTo(px, py);
-                }
-                cr.stroke();
-            }
-        }
-        // Bright rim.
-        cr.setSourceRGBA(...mix(c1, [1, 1, 1], 0.5), 0.8);
-        cr.setLineWidth(3);
-        cr.arc(0, 0, radius, 0, Math.PI * 2);
-        cr.stroke();
-        cr.$dispose();
-    });
+    const c = size / 2;
 
-    const done = destroyer(ring);
-    const spin = reverse ? -540 : 540;
-    ring.ease({scale_x: 1, scale_y: 1, duration: 260, mode: Clutter.AnimationMode.EASE_OUT_BACK});
-    ring.ease({
-        rotation_angle_z: spin,
-        duration: 1300,
-        mode: Clutter.AnimationMode.EASE_IN_OUT_SINE,
-        onComplete: () => ring.ease({
-            scale_x: 0.05, scale_y: 0.05, opacity: 0, duration: 260,
-            mode: Clutter.AnimationMode.EASE_IN_BACK, onStopped: done,
-        }),
-        onStopped: f => {
-            if (!f)
-                done();
-        },
+    fx.sprite({texture: 'orb-white', x: c, y: c, size: size * 1.25, tint: c1, opacity: 0.75, parent: box});
+    const eye = new St.Widget({
+        style: `background-gradient-direction: radial;
+            background-gradient-start: rgba(4, 0, 14, 0.97);
+            background-gradient-end: rgba(4, 0, 14, 0);
+            border-radius: ${size}px;`,
+        width: Math.round(size * 0.62), height: Math.round(size * 0.62),
+        x: Math.round(c - size * 0.31), y: Math.round(c - size * 0.31),
+        reactive: false,
     });
-    fx.burst(x, y, {count: 24, colors: [c1, c2, [1, 1, 1]], speed: radius * 1.2});
-    return ring;
+    box.add_child(eye);
+    const swirl = fx.sprite({texture: 'vortex', x: c, y: c, size: size * 0.95, tint: c1, parent: box});
+    const hot = fx.sprite({texture: 'vortex-hot', x: c, y: c, size: size * 0.8, tint: mix(c2, [1, 1, 1], 0.5), parent: box});
+    const rim = fx.sprite({texture: 'sigil', x: c, y: c, size: size * 1.05, tint: mix(c2, [1, 1, 1], 0.6), opacity: 0.85, parent: box});
+
+    const LIN = Clutter.AnimationMode.LINEAR;
+    swirl.ease({rotation_angle_z: dir * -720, duration: LIFE, mode: LIN});
+    hot.ease({rotation_angle_z: dir * -1080, duration: LIFE, mode: LIN});
+    rim.ease({rotation_angle_z: dir * 160, duration: LIFE, mode: LIN});
+
+    const done = destroyer(box);
+    box.ease({opacity: 255, scale_x: 1, scale_y: 1, duration: 320, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+    fx.later(LIFE - 320, () => box.ease({
+        opacity: 0, scale_x: 0.05, scale_y: 0.05, rotation_angle_z: dir * -90, duration: 320,
+        mode: Clutter.AnimationMode.EASE_IN_BACK, onStopped: done,
+    }));
+
+    // Motes spiralling inward (or flying out when releasing).
+    const n = Math.round(40 * fx.amount);
+    for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const far = radius * (1.4 + Math.random() * 0.9);
+        const near = radius * 0.1;
+        const [from, to] = reverse ? [near, far] : [far, near];
+        const a2 = a + dir * 1.2;
+        fx.particle({
+            kind: Math.random() < 0.3 ? 'sparkle' : 'orb',
+            x: x + Math.cos(a) * from, y: y + Math.sin(a) * from,
+            dx: Math.cos(a2) * to - Math.cos(a) * from,
+            dy: Math.sin(a2) * to - Math.sin(a) * from,
+            size: 2 + Math.random() * 4,
+            color: Math.random() < 0.5 ? c1 : c2,
+            startScale: 1,
+            endScale: reverse ? 0.3 : 0.6,
+            delay: Math.random() * 600,
+            duration: 500 + Math.random() * 400,
+            mode: reverse ? Clutter.AnimationMode.EASE_OUT_QUAD : Clutter.AnimationMode.EASE_IN_QUAD,
+        });
+    }
+    fx.shockwave(x, y, {color: c1, size: size * 1.2, duration: 600, delay: reverse ? 0 : 200});
+    return box;
 }
 
 function swallow(ctx, center) {
     const wins = workspaceWindows();
-    portalRing(ctx.fx, center.x, center.y, 120, ctx.colors, false);
+    portalRing(ctx.fx, center.x, center.y, 150, ctx.colors, false);
 
     wins.forEach((win, i) => {
         const actor = win.get_compositor_private();
@@ -143,7 +147,7 @@ function swallow(ctx, center) {
 }
 
 function release(ctx, center, entries) {
-    portalRing(ctx.fx, center.x, center.y, 120, ctx.colors, true);
+    portalRing(ctx.fx, center.x, center.y, 150, ctx.colors, true);
     swallowed = [];
 
     entries.forEach((entry, i) => {

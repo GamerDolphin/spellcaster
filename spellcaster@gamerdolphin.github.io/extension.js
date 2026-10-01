@@ -47,7 +47,7 @@ let wakeSparklePending = false;
 export default class SpellcasterExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
-        this._fx = new Fx(this._settings);
+        this._fx = new Fx(this._settings, this.path);
         this._familiar = new Familiar(this._settings, this._fx);
 
         this._overlay = new CastOverlay(this._settings, this._fx, {

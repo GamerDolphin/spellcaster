@@ -2,7 +2,7 @@ UUID := spellcaster@gamerdolphin.github.io
 EXT_DIR := $(HOME)/.local/share/gnome-shell/extensions
 SRC := $(CURDIR)/$(UUID)
 
-.PHONY: install dev-install uninstall pack test test-shell check
+.PHONY: install dev-install uninstall pack test test-shell check textures
 
 ## install: build a zip and install it (copies files)
 install: pack
@@ -25,7 +25,11 @@ uninstall:
 pack:
 	mkdir -p dist
 	gnome-extensions pack "$(SRC)" --force --out-dir=dist \
-		--extra-source=lib --extra-source=spells
+		--extra-source=lib --extra-source=spells --extra-source=assets
+
+## textures: regenerate the particle/effect textures in assets/
+textures:
+	gjs -m tools/make-textures.js
 
 ## check: syntax check + rune recognizer tests (fast)
 check:

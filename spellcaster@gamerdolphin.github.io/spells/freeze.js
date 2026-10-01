@@ -4,6 +4,7 @@
 // blue, then the screen locks.
 
 import Clutter from 'gi://Clutter';
+import Graphene from 'gi://Graphene';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -13,93 +14,60 @@ import {Palette, rand} from '../lib/fx.js';
 
 const FROST_MS = 950;
 
-/** A branching ice crystal growing from (x, y) in direction `angle`. */
-function crystal(x, y, angle, length, depth) {
-    const segs = [];
-    const grow = (sx, sy, a, len, d, t0) => {
-        const ex = sx + Math.cos(a) * len, ey = sy + Math.sin(a) * len;
-        segs.push({sx, sy, ex, ey, t0, t1: t0 + 0.35 / (4 - d), w: 1 + d * 0.9});
-        if (d <= 0)
-            return;
-        const n = 2 + Math.floor(Math.random() * 2);
-        for (let i = 1; i <= n; i++) {
-            const k = i / (n + 1);
-            const bx = sx + (ex - sx) * k, by = sy + (ey - sy) * k;
-            const tb = t0 + (0.35 / (4 - d)) * k;
-            grow(bx, by, a + Math.PI / 3, len * 0.42, d - 1, tb);
-            grow(bx, by, a - Math.PI / 3, len * 0.42, d - 1, tb);
-        }
-    };
-    grow(x, y, angle, length, depth, 0);
-    return segs;
-}
-
+/** Frost creeping in from the four corners, plus a cold tint and glints. */
 function frostMonitor(fx, m) {
     const tint = fx.add(new St.Widget({
-        style: 'background-color: rgba(150, 205, 255, 0.38);',
+        style: 'background-color: rgba(150, 205, 255, 0.34);',
         x: m.x, y: m.y, width: m.width, height: m.height,
         opacity: 0, reactive: false,
     }));
     tint.ease({opacity: 255, duration: FROST_MS, mode: Clutter.AnimationMode.EASE_IN_QUAD});
 
-    const depth = fx.amount < 1 ? 1 : 2;
-    const segs = [];
-    const L = Math.min(m.width, m.height) * 0.22;
-    // Corners first, then along the edges.
-    const seeds = [
-        [0, 0, Math.PI / 4], [m.width, 0, Math.PI * 3 / 4],
-        [0, m.height, -Math.PI / 4], [m.width, m.height, -Math.PI * 3 / 4],
+    // The texture grows from its top-left corner; rotate it for the others.
+    const S = Math.round(Math.min(m.width, m.height) * 0.62);
+    const corners = [
+        {x: m.x, y: m.y, rot: 0, px: 0, py: 0},
+        {x: m.x + m.width - S, y: m.y, rot: 90, px: 1, py: 0},
+        {x: m.x + m.width - S, y: m.y + m.height - S, rot: 180, px: 1, py: 1},
+        {x: m.x, y: m.y + m.height - S, rot: 270, px: 0, py: 1},
     ];
-    for (let i = 0; i < 10; i++) {
-        const edge = i % 4;
-        const t = rand(0.1, 0.9);
-        if (edge === 0)
-            seeds.push([m.width * t, 0, Math.PI / 2 + rand(-0.4, 0.4)]);
-        else if (edge === 1)
-            seeds.push([m.width * t, m.height, -Math.PI / 2 + rand(-0.4, 0.4)]);
-        else if (edge === 2)
-            seeds.push([0, m.height * t, rand(-0.4, 0.4)]);
-        else
-            seeds.push([m.width, m.height * t, Math.PI + rand(-0.4, 0.4)]);
-    }
-    seeds.forEach(([x, y, a], i) =>
-        segs.push(...crystal(x, y, a, L * (i < 4 ? 1.3 : rand(0.5, 0.9)), depth)));
+    const pieces = [tint];
+    corners.forEach((c, i) => {
+        const holder = fx.add(new St.Widget({
+            x: c.x, y: c.y, width: S, height: S,
+            pivot_point: new Graphene.Point({x: c.px, y: c.py}),
+            scale_x: 0.05, scale_y: 0.05, opacity: 0, reactive: false,
+        }));
+        fx.sprite({texture: 'frost-corner', x: S / 2, y: S / 2, size: S, rotation: c.rot, parent: holder});
+        holder.ease({
+            scale_x: 1, scale_y: 1, opacity: 255,
+            delay: i * 60, duration: FROST_MS - 100,
+            mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+        });
+        pieces.push(holder);
+    });
 
-    const area = fx.add(new St.DrawingArea({x: m.x, y: m.y, width: m.width, height: m.height, reactive: false}));
-    let progress = 0;
-    area.connect('repaint', a => {
-        const cr = a.get_context();
-        cr.setLineCap(1);
-        for (const s of segs) {
-            if (progress <= s.t0)
-                continue;
-            const k = Math.min(1, (progress - s.t0) / (s.t1 - s.t0));
-            const ex = s.sx + (s.ex - s.sx) * k, ey = s.sy + (s.ey - s.sy) * k;
-            cr.setSourceRGBA(0.75, 0.92, 1, 0.35);
-            cr.setLineWidth(s.w * 3);
-            cr.moveTo(s.sx, s.sy);
-            cr.lineTo(ex, ey);
-            cr.stroke();
-            cr.setSourceRGBA(1, 1, 1, 0.9);
-            cr.setLineWidth(s.w);
-            cr.moveTo(s.sx, s.sy);
-            cr.lineTo(ex, ey);
-            cr.stroke();
-        }
-        cr.$dispose();
-    });
-    const tl = fx.animate(area, FROST_MS, p => {
-        progress = p;
-        area.queue_repaint();
-    });
-    return {tint, area, tl};
+    // Glints of light twinkling on the ice.
+    const n = Math.round(18 * fx.amount);
+    for (let i = 0; i < n; i++) {
+        const c = corners[i % 4];
+        const d = rand(0.05, 0.5) * S;
+        const a = rand(0, Math.PI / 2);
+        const gx = c.px ? m.x + m.width - Math.cos(a) * d : m.x + Math.cos(a) * d;
+        const gy = c.py ? m.y + m.height - Math.sin(a) * d : m.y + Math.sin(a) * d;
+        fx.particle({kind: 'sparkle', x: gx, y: gy, size: rand(5, 10), color: [0.88, 0.96, 1],
+            spin: 90, startScale: 0.2, endScale: 1.1, delay: rand(200, FROST_MS), duration: rand(400, 700)});
+    }
+    fx.snowfall(m, 30);
+    return pieces;
 }
 
 export function cast(ctx) {
     const {fx} = ctx;
-    const pieces = Main.layoutManager.monitors.map(m => frostMonitor(fx, m));
-    for (const m of Main.layoutManager.monitors)
-        fx.burst(m.x + m.width / 2, m.y + m.height / 2, {count: 18, colors: Palette.frost, speed: 200});
+    const pieces = Main.layoutManager.monitors.flatMap(m => frostMonitor(fx, m));
+    const {x, y} = ctx.result.info.center;
+    fx.shockwave(x, y, {color: [0.65, 0.88, 1], size: 500, duration: 700});
+    fx.burst(x, y, {count: 26, colors: Palette.frost, speed: 220, stars: 0.5});
 
     fx.later(FROST_MS + 120, () => {
         try {
@@ -110,11 +78,8 @@ export function cast(ctx) {
         // The extension is switched off on the lock screen anyway, but
         // clean up in case locking is disabled.
         fx.later(800, () => {
-            for (const p of pieces) {
-                p.tl.stop();
-                p.tint.destroy();
-                p.area.destroy();
-            }
+            for (const p of pieces)
+                p.destroy();
         });
     });
 }
