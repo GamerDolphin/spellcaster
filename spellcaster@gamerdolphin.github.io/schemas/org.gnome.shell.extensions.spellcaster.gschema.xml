@@ -102,7 +102,7 @@
     </key>
     <key name="familiar-opacity" type="d">
       <range min="0.2" max="1"/>
-      <default>0.9</default>
+      <default>0.75</default>
       <summary>Familiar opacity</summary>
     </key>
     <key name="familiar-hide-fullscreen" type="b">

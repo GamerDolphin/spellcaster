@@ -278,9 +278,13 @@ export class Familiar {
             ease = 0.012;
         }
 
-        // Shy: drift away from a close cursor (but never while napping).
+        // Shy: fade out and drift away from a close cursor (not while napping).
         const shyR = Math.max(90, S * 2.6);
         const close = d < shyR && this._mood !== 'sleep';
+        // 0 = cursor right on it, 1 = comfortably far away.
+        const shyNear = S * 0.8, shyFar = Math.max(shyR, keep * 0.9);
+        const comfort = this._mood === 'sleep' ? 1
+            : Math.min(1, Math.max(0, (d - shyNear) / (shyFar - shyNear)));
         if (close && mode !== 'perch') {
             const push = (shyR - d) / shyR;
             target = {x: target.x - (dx / d) * push * 80, y: target.y - (dy / d) * push * 80};
@@ -316,8 +320,9 @@ export class Familiar {
         this._tail.unshift({x: pos.x, y: pos.y});
         this._tail.length = Math.min(this._tail.length, this._settings.get_boolean('reduce-effects') ? 4 : TAIL_LENGTH);
 
-        const want = this._targetOpacity() * (close ? 0.25 : 1);
-        this._opacity += (want - this._opacity) * 0.12;
+        const want = this._targetOpacity() * (0.12 + 0.88 * comfort * comfort);
+        // Fade out quickly when the cursor comes near, back in slowly.
+        this._opacity += (want - this._opacity) * (want < this._opacity ? 0.3 : 0.08);
         this._actor.opacity = Math.round(255 * this._opacity);
 
         this._place();

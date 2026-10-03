@@ -13,7 +13,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {recognize} from './recognizer.js';
 import {themeColors} from './runes.js';
-import {Palette, destroyer, mix, pointerMonitor, rgba} from './fx.js';
+import {Shader} from './shaders.js';
+import {destroyer, mix, pointerMonitor, rgba} from './fx.js';
 
 const IDLE_TIMEOUT_MS = 10000;
 const MIN_POINT_GAP = 2;
@@ -77,6 +78,29 @@ export class CastOverlay {
         this._trail = new St.DrawingArea({x: m.x, y: m.y, width: m.width, height: m.height, reactive: false});
         this._trail.connect('repaint', area => this._paintTrail(area, cast));
         this._overlay.add_child(this._trail);
+
+        // The trail's look comes from a GPU shader on top of a Cairo mask.
+        cast.shader = new Shader('trail');
+        cast.flare = 0;
+        cast.fizzle = 0;
+        cast.len = 1;
+        this._trail.add_effect(cast.shader.effect);
+        const trail = this._trail;
+        const t0 = Date.now();
+        cast.timeline = new Clutter.Timeline({actor: trail, duration: 1000, repeat_count: -1});
+        cast.timeline.connect('new-frame', () => {
+            cast.shader.setAll({
+                u_time: (Date.now() - t0) / 1000,
+                u_c1: cast.colors[0],
+                u_c2: cast.colors[1],
+                u_px: [1 / m.width, 1 / m.height],
+                u_len: cast.len,
+                u_flare: cast.flare,
+                u_fizzle: cast.fizzle,
+            });
+        });
+        cast.timeline.start();
+        trail.connect('destroy', () => cast.timeline.stop());
 
         const tipSize = 10;
         this._tip = new St.Widget({
@@ -193,57 +217,33 @@ export class CastOverlay {
     }
 
     _paintTrail(area, cast) {
+        // A thin mask: red = how far along the stroke (0 start .. 1 newest),
+        // drawn opaque so overlapping segments never "bead". The shader does
+        // the glow, colour and sparkle.
         const cr = area.get_context();
         const pts = cast.points;
         if (pts.length > 1) {
             const m = cast.monitor;
             cr.translate(-m.x, -m.y);
-
-            const trace = () => {
-                cr.moveTo(pts[0].x, pts[0].y);
-                // Smooth curve through the midpoints.
-                for (let i = 1; i < pts.length - 1; i++) {
-                    const mx = (pts[i].x + pts[i + 1].x) / 2;
-                    const my = (pts[i].y + pts[i + 1].y) / 2;
-                    cr.curveTo(pts[i].x, pts[i].y, pts[i].x, pts[i].y, mx, my);
-                }
-                const l = pts[pts.length - 1];
-                cr.lineTo(l.x, l.y);
-            };
-
-            const w = cast.width;
-            let [c1, c2] = cast.colors;
-            let boost = 1;
-            if (cast.state === 'fizzle') {
-                c1 = Palette.smoke[0];
-                c2 = Palette.smoke[1];
-                boost = 0.6;
-            } else if (cast.state === 'flare') {
-                c1 = mix(c1, [1, 1, 1], 0.4);
-                c2 = mix(c2, [1, 1, 1], 0.4);
-                boost = 1.5;
-            }
-
             cr.setLineCap(1); // ROUND
             cr.setLineJoin(1); // ROUND
-            const layers = [
-                [w * 5, 0.10],
-                [w * 3, 0.20],
-                [w * 1.8, 0.45],
-                [w, 0.95],
-            ];
-            for (const [lw, a] of layers) {
-                const t = Math.min(1, a * boost);
-                cr.setSourceRGBA(...mix(c1, c2, 0.5), t);
-                cr.setLineWidth(lw * (cast.state === 'flare' ? 1.3 : 1));
-                trace();
+            cr.setLineWidth(Math.max(2, cast.width * 0.75));
+            // Thin the points out a little for speed.
+            const step = Math.max(1, Math.floor(pts.length / 400));
+            const use = pts.filter((_, i) => i % step === 0 || i === pts.length - 1);
+            let total = 0;
+            const cum = [0];
+            for (let i = 1; i < use.length; i++) {
+                total += Math.hypot(use[i].x - use[i - 1].x, use[i].y - use[i - 1].y);
+                cum.push(total);
+            }
+            cast.len = Math.max(1, total);
+            for (let i = 1; i < use.length; i++) {
+                cr.setSourceRGBA(cum[i] / cast.len, 1, 0, 1);
+                cr.moveTo(use[i - 1].x, use[i - 1].y);
+                cr.lineTo(use[i].x, use[i].y);
                 cr.stroke();
             }
-            // Bright core.
-            cr.setSourceRGBA(1, 1, 1, cast.state === 'fizzle' ? 0.35 : 0.9);
-            cr.setLineWidth(Math.max(1.5, w * 0.35));
-            trace();
-            cr.stroke();
         }
         cr.$dispose();
     }
@@ -261,7 +261,7 @@ export class CastOverlay {
 
         if (result.rune) {
             this._cast.state = 'flare';
-            this._trail.queue_repaint();
+            this._animateCast(this._cast, 'flare', 260);
             // Sparkle along the rune.
             const pts = this._cast.points;
             const step = Math.max(1, Math.floor(pts.length / 26));
@@ -286,7 +286,7 @@ export class CastOverlay {
             overlay.ease({opacity: 0, delay: 180, duration: 420, mode: Clutter.AnimationMode.EASE_OUT_QUAD, onStopped: done});
         } else {
             this._cast.state = 'fizzle';
-            this._trail.queue_repaint();
+            this._animateCast(this._cast, 'fizzle', 450);
             const pts = this._cast.points;
             const step = Math.max(1, Math.floor(pts.length / 6));
             for (let i = 0; i < pts.length; i += step)
@@ -302,6 +302,15 @@ export class CastOverlay {
         else
             this._callbacks.onFizzle(result, {colors, monitor, points: this._cast.points});
         this._callbacks.onEnd?.();
+    }
+
+    /** Ease a trail uniform (flare / fizzle) from 0 to 1. */
+    _animateCast(cast, key, ms) {
+        const t0 = Date.now();
+        const tl = new Clutter.Timeline({actor: this._trail, duration: ms});
+        tl.connect('new-frame', () => (cast[key] = Math.min(1, (Date.now() - t0) / ms)));
+        tl.connect('completed', () => (cast[key] = 1));
+        tl.start();
     }
 
     _releaseInput() {

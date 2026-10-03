@@ -190,7 +190,9 @@ async function run() {
     const top = testWindows().filter(w => !w.minimized).at(-1);
     const r = top.get_frame_rect();
     await cast(runes, 'spiral', r.x + r.width / 2, r.y + r.height / 2, 260, {shotName: '04-spiral-trail'});
-    await sleep(250);
+    await sleep(120);
+    await shot('04b-sigil');
+    await sleep(130);
     await shot('05a-fireball-orb');
     await sleep(450);
     await shot('05b-fireball-boom');
@@ -232,7 +234,9 @@ async function run() {
 
     // Summon the familiar with the Λ rune.
     await cast(runes, 'caret', cx + 250, cy - 100, 260);
-    await sleep(900);
+    await sleep(450);
+    await shot('08c-summon-sigil');
+    await sleep(450);
     check('Summon rune brings out the familiar', settings.get_boolean('familiar-visible') && sc()._familiar.visible);
     moveTo(cx - 400, cy + 200);
     await sleep(1500);
@@ -242,6 +246,20 @@ async function run() {
     await sleep(700);
     await shot('09b-familiar-spirit-moving');
     log(`FAMPOS ${Math.round(sc()._familiar.position.x)} ${Math.round(sc()._familiar.position.y)}`);
+    // Shy: it fades right out when the cursor is on it, and comes back after.
+    settings.set_string('familiar-mode', 'perch');
+    await sleep(2500);
+    let fp = sc()._familiar.position;
+    moveTo(fp.x, fp.y);
+    await sleep(900);
+    const shyOp = sc()._familiar._actor.opacity;
+    check('Familiar fades when the cursor is on it', shyOp < 70, `opacity=${shyOp}`);
+    await shot('09c-familiar-shy');
+    moveTo(fp.x - 500, fp.y + 350);
+    await sleep(2500);
+    const backOp = sc()._familiar._actor.opacity;
+    check('Familiar fades back in when the cursor leaves', backOp > 150, `opacity=${backOp}`);
+    settings.set_string('familiar-mode', 'follow');
     settings.set_string('familiar-type', 'wisp');
     await sleep(1200);
     await shot('09-familiar-wisp');

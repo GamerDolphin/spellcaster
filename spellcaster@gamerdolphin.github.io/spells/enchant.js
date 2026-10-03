@@ -113,7 +113,6 @@ async function toggleMusic(settings) {
 export function cast(ctx) {
     const {fx} = ctx;
     const {x, y} = ctx.result.info.center;
-    fx.sigil(x, y, {colors: [[1, 0.55, 0.88], [1, 0.85, 0.4]], size: 260, hold: 400, spin: -160});
     fx.shockwave(x, y, {color: [1, 0.6, 0.9], size: 320, duration: 650});
     for (const m of Main.layoutManager.monitors) {
         // Aurora ribbons sweep across the top of each screen.

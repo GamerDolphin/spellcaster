@@ -17,6 +17,8 @@ import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import {runShader, shaderActor} from './shaders.js';
+
 const MAX_PARTICLES = 260;
 
 // How much bigger the texture box is than the bright part of the particle.
@@ -374,34 +376,32 @@ export class Fx {
     }
 
     /**
-     * A glowing magic circle that spins in, holds, and fades.
-     * Returns the container actor.
+     * A magic circle (GPU shader) that draws itself in, spins with flowing
+     * energy, then dissolves into motes. Returns the actor.
      */
     sigil(x, y, {colors = [[0.7, 0.42, 1], [1, 0.45, 0.85]], size = 320, hold = 350, spin = 120, parent = null} = {}) {
-        const box = new St.Widget({
-            width: size, height: size,
-            x: Math.round(x - size / 2), y: Math.round(y - size / 2),
-            pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
-            reactive: false, opacity: 0,
-        });
-        (parent ?? this.layer).add_child(box);
+        const {actor, shader} = shaderActor('sigil', {x: x - size / 2, y: y - size / 2, width: size, height: size});
+        (parent ?? this.layer).add_child(actor);
         this.raise();
-        this.sprite({texture: 'sigil-glow', x: size / 2, y: size / 2, size, tint: colors[0], parent: box});
-        this.sprite({texture: 'sigil', x: size / 2, y: size / 2, size, tint: mix(colors[1], [1, 1, 1], 0.55), parent: box});
-        box.set_scale(0.55, 0.55);
-        box.rotation_angle_z = -spin * 0.4;
-        const done = destroyer(box);
-        box.ease({opacity: 255, scale_x: 1, scale_y: 1, duration: 260, mode: Clutter.AnimationMode.EASE_OUT_BACK});
-        box.ease({
-            rotation_angle_z: spin,
-            duration: 260 + hold + 450,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
-        this.later(260 + hold, () => box.ease({
-            opacity: 0, scale_x: 1.25, scale_y: 1.25, duration: 450,
-            mode: Clutter.AnimationMode.EASE_IN_QUAD, onStopped: done,
-        }));
-        return box;
+        const total = 300 + hold + 650;
+        const seed = Math.random() * 100;
+        runShader(actor, shader, total, (p, secs) => {
+            // Map real time onto the shader's draw-in (0..0.35), hold, dissolve (0.72..1).
+            const ms = p * total;
+            let prog;
+            if (ms < 300)
+                prog = 0.35 * ms / 300;
+            else if (ms < 300 + hold)
+                prog = 0.35 + 0.37 * (ms - 300) / hold;
+            else
+                prog = 0.72 + 0.28 * (ms - 300 - hold) / 650;
+            shader.setAll({u_time: secs, u_progress: prog, u_c1: colors[0], u_c2: colors[1],
+                u_seed: seed, u_spin: spin / 180});
+        }, destroyer(actor));
+        actor.set_pivot_point(0.5, 0.5);
+        actor.set_scale(0.85, 0.85);
+        actor.ease({scale_x: 1, scale_y: 1, duration: 300, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+        return actor;
     }
 
     /** Full-monitor colour flash. */

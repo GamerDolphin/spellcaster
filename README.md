@@ -34,7 +34,9 @@ Any rune can be rebound in the Spellbook to: Snapshot (screenshot), Scry (overvi
 
 ## Effects
 
-The big effects are **real-time GPU shaders**: the window literally burns away from where the fireball hit, night falls with twinkling stars and a rising moon, ice crystals creep in from the edges, lightning crackles and branches, and aurora ribbons sweep across the sky. (They use GNOME Shell 50's `Shell.GLSLEffect`.)
+The big effects are **real-time GPU shaders**: the window literally burns away from where the fireball hit, night falls with twinkling stars and a rising moon, ice crystals creep in from the edges, lightning crackles and branches, and aurora ribbons sweep across the sky. The casting trail (a glowing ribbon with energy pulses racing to your wand tip) and the magic circle (draws itself in, spins, then dissolves into motes) are shaders too.
+
+They use GNOME 50's `Shell.GLSLEffect`. GNOME 51 removes that, so Spellcaster automatically switches to its replacement (`Clutter.ShaderEffect`) there. That path is written but can't be tested until GNOME 51 ships, which is why `metadata.json` only lists GNOME 50 for now.
 
 The smaller particles use a hand-built texture set: glowing orbs, twinkling stars, flame licks, smoke, snowflakes, a magic sigil, a swirling vortex, a fireball and creeping frost. It's all **generated in code** by `tools/make-textures.js`, so there are no downloads or licences, and you can tweak the generator and run `make textures`.
 
