@@ -130,6 +130,13 @@ export class Familiar {
             this._actor.connect('repaint', area => this._paint(area));
         }
 
+        // If GNOME tears the UI down under us (logging out), stop cleanly.
+        const created = this._actor;
+        created.connect('destroy', () => {
+            if (this._actor === created)
+                this._teardownActor();
+        });
+
         const lm = Main.layoutManager;
         lm.uiGroup.insert_child_below(this._actor, lm.modalDialogGroup);
 
