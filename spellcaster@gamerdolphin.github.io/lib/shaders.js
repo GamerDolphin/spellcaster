@@ -12,6 +12,7 @@
 
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
+import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
@@ -607,22 +608,72 @@ export function shaderActor(name, {x, y, width, height, parent}) {
 }
 
 /**
- * Drive a shader for `duration` ms: onFrame(progress, seconds) each frame.
- * Returns the timeline.
+ * Drive a shader for `duration` ms: onFrame(progress, seconds) each frame,
+ * then onDone(). Two safety nets so an effect can never get stuck on screen:
+ *  - GNOME is asked to keep compositing (a fullscreen or focused app could
+ *    otherwise pause drawing on top of it), and
+ *  - a backup timer finishes the effect if the animation clock stalls.
+ * Returns an object with stop().
  */
 export function runShader(actor, shader, duration, onFrame, onDone) {
     const tl = new Clutter.Timeline({actor, duration});
     const start = Date.now();
+    let finished = false;
+    let backup = 0;
+    global.compositor.disable_unredirect();
+
+    const finish = () => {
+        if (finished)
+            return;
+        finished = true;
+        global.compositor.enable_unredirect();
+        if (backup) {
+            GLib.source_remove(backup);
+            backup = 0;
+        }
+        tl.stop();
+        try {
+            onFrame(1, (Date.now() - start) / 1000);
+        } catch {}
+        onDone?.();
+    };
     const frame = () => {
-        onFrame(tl.get_progress(), (Date.now() - start) / 1000);
+        if (finished)
+            return;
+        // Use the wall clock, so a slow or skipped frame never stretches it.
+        const p = Math.min(1, (Date.now() - start) / duration);
+        onFrame(p, (Date.now() - start) / 1000);
         shader.effect.queue_repaint();
+        if (p >= 1)
+            finish();
     };
     tl.connect('new-frame', frame);
-    tl.connect('completed', () => {
-        onFrame(1, (Date.now() - start) / 1000);
-        onDone?.();
+    tl.connect('completed', finish);
+    backup = GLib.timeout_add(GLib.PRIORITY_DEFAULT, duration + 400, () => {
+        backup = 0;
+        finish();
+        return GLib.SOURCE_REMOVE;
+    });
+    // If the actor goes away first (extension disabled), just clean up.
+    actor.connect('destroy', () => {
+        if (finished)
+            return;
+        finished = true;
+        global.compositor.enable_unredirect();
+        if (backup)
+            GLib.source_remove(backup);
+        backup = 0;
     });
     frame();
     tl.start();
-    return tl;
+    return {stop: () => {
+        if (finished)
+            return;
+        finished = true;
+        global.compositor.enable_unredirect();
+        if (backup)
+            GLib.source_remove(backup);
+        backup = 0;
+        tl.stop();
+    }};
 }

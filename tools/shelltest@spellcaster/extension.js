@@ -229,6 +229,13 @@ async function run() {
     await sleep(150);
     await shot('08b-lightning');
     const launched = await waitFor(() => testWindows().length > n0, 12000);
+    // Every shader actor should be cleaned up once its effect is over.
+    await sleep(1500);
+    const leftovers = sc()._fx.layer.get_children()
+        .filter(a => a.get_effects().some(e => e.constructor.$gtype.name.startsWith('SpellcasterShader')));
+    check('Lightning bolt goes away afterwards', leftovers.length === 0,
+        `left=${leftovers.map(a => a.get_effects()[0].constructor.$gtype.name).join(',')} opacity=${leftovers.map(a => a.opacity).join(',')}`);
+    await shot('08d-after-lightning');
     check('Lightning Strike launches the app', launched, `before=${n0} after=${testWindows().length}`);
     await sleep(1000);
 
