@@ -294,6 +294,9 @@ function drawDragon(cr, p) {
 }
 
 export const FAMILIARS = {
+    // The real Spirit is a GPU shader in the shell; the Spellbook preview
+    // uses the wisp drawing as a stand-in.
+    spirit: {name: 'Spirit (glowing flame, best looking)', draw: drawWisp},
     wisp: {name: 'Wisp', draw: drawWisp},
     owl: {name: 'Owl', draw: drawOwl},
     dragon: {name: 'Tiny Dragon', draw: drawDragon},

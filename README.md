@@ -28,12 +28,15 @@ Any rune can be rebound in the Spellbook to: Snapshot (screenshot), Scry (overvi
 
 | | |
 |---|---|
-| ![Fireball](docs/screenshots/fireball.png) | ![Portal](docs/screenshots/portal.png) |
+| ![Fireball burning a window away](docs/screenshots/fireball.png) | ![Portal](docs/screenshots/portal.png) |
 | ![Lightning Strike](docs/screenshots/lightning.png) | ![Freeze](docs/screenshots/freeze.png) |
+| ![Slumber: night falls](docs/screenshots/slumber.png) | ![Enchant: aurora](docs/screenshots/enchant.png) |
 
 ## Effects
 
-Every effect uses a hand-built texture set: glowing orbs, twinkling stars, flame licks, smoke, snowflakes, a magic sigil, a swirling vortex, a fireball and creeping frost. It's all **generated in code** by `tools/make-textures.js`, so there are no downloads or licences, and you can tweak the generator and run `make textures`.
+The big effects are **real-time GPU shaders**: the window literally burns away from where the fireball hit, night falls with twinkling stars and a rising moon, ice crystals creep in from the edges, lightning crackles and branches, and aurora ribbons sweep across the sky. (They use GNOME Shell 50's `Shell.GLSLEffect`.)
+
+The smaller particles use a hand-built texture set: glowing orbs, twinkling stars, flame licks, smoke, snowflakes, a magic sigil, a swirling vortex, a fireball and creeping frost. It's all **generated in code** by `tools/make-textures.js`, so there are no downloads or licences, and you can tweak the generator and run `make textures`.
 
 ![The texture set](docs/screenshots/textures.png)
 
@@ -41,7 +44,11 @@ Every effect uses a hand-built texture set: glowing orbs, twinkling stars, flame
 
 ![Wisp, owl and tiny dragon](docs/screenshots/familiars.png)
 
-A **wisp**, an **owl** or a **tiny dragon** keeps you company. It's built to never get in the way:
+A familiar keeps you company. The default is the **Spirit**, a little flame creature drawn live on your GPU: its flame flickers, its tail streams behind it as it moves, and it glows blue → purple → orange with your CPU load. There's also a **wisp**, an **owl** and a **tiny dragon**.
+
+![The Spirit](docs/screenshots/spirit.png)
+
+ It's built to never get in the way:
 
 - your clicks pass straight through it
 - it keeps its distance, and fades and drifts off if your cursor gets close

@@ -17,6 +17,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {CpuWatch} from './systemWatch.js';
 import {cpuGlow, draw} from './familiarArt.js';
+import {shaderActor} from './shaders.js';
 import {Palette, destroyer, monitorAt, rand} from './fx.js';
 
 const FPS_AWAKE = 30;
@@ -54,6 +55,7 @@ export class Familiar {
         this._settingsIds = [
             settings.connect('changed::familiar-visible', () => this._syncVisible()),
             settings.connect('changed::familiar-size', () => this._rebuild()),
+            settings.connect('changed::familiar-type', () => this._rebuild()),
             settings.connect('changed::familiar-react-cpu', () => this._syncCpu()),
             settings.connect('changed::familiar-nap', () => this._syncIdle()),
             settings.connect('changed::familiar-nap-minutes', () => this._syncIdle()),
@@ -105,17 +107,28 @@ export class Familiar {
 
     _create(quiet) {
         const S = this._size;
-        const box = Math.ceil(S * 3.2);
+        // The Spirit is drawn by a GPU shader and needs room for its tail.
+        this._isSpirit = this._settings.get_string('familiar-type') === 'spirit';
+        const box = Math.ceil(S * (this._isSpirit ? 4.2 : 3.2));
         this._box = box;
+        this._vel = {x: 0, y: 0};
 
-        this._actor = new St.DrawingArea({
-            width: box,
-            height: box,
-            reactive: false,
-            opacity: 0,
-            pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
-        });
-        this._actor.connect('repaint', area => this._paint(area));
+        if (this._isSpirit) {
+            const {actor, shader} = shaderActor('spirit', {x: 0, y: 0, width: box, height: box});
+            this._actor = actor;
+            this._shader = shader;
+            actor.set({opacity: 0, pivot_point: new Graphene.Point({x: 0.5, y: 0.5})});
+        } else {
+            this._shader = null;
+            this._actor = new St.DrawingArea({
+                width: box,
+                height: box,
+                reactive: false,
+                opacity: 0,
+                pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
+            });
+            this._actor.connect('repaint', area => this._paint(area));
+        }
 
         const lm = Main.layoutManager;
         lm.uiGroup.insert_child_below(this._actor, lm.modalDialogGroup);
@@ -278,6 +291,8 @@ export class Familiar {
         pos.x += mx;
         pos.y += my;
         this._moving = Math.min(1, Math.hypot(mx, my) / 3);
+        this._vel.x += (mx / maxSp - this._vel.x) * 0.2;
+        this._vel.y += (my / maxSp - this._vel.y) * 0.2;
 
         if (mx > 0.4)
             this._facing = 1;
@@ -299,7 +314,35 @@ export class Familiar {
         this._actor.opacity = Math.round(255 * this._opacity);
 
         this._place();
-        this._actor.queue_repaint();
+        this._redraw();
+    }
+
+    _glowAndPulse() {
+        const load = this._settings.get_boolean('familiar-react-cpu') ? this._cpu : 0;
+        const pulse = (Math.sin(this._t * (1.2 + load * 4)) + 1) / 2 * (0.4 + load * 0.6);
+        return [cpuGlow(load), pulse];
+    }
+
+    _redraw() {
+        if (!this._actor)
+            return;
+        if (!this._shader) {
+            this._actor.queue_repaint();
+            return;
+        }
+        const [glow, pulse] = this._glowAndPulse();
+        const MOODS = {idle: 0, watch: 1, happy: 2, oops: 3, sleep: 4};
+        this._actor.translation_y = this._drawY ?? 0;
+        this._shader.setAll({
+            u_time: this._t,
+            u_vel: [this._vel.x, this._vel.y],
+            u_look: [this._look.x, this._look.y],
+            u_blink: this._t < this._blinkUntil ? 1 : 0,
+            u_mood: MOODS[this._mood] ?? 0,
+            u_glow: glow,
+            u_pulse: pulse,
+            u_alpha: 1,
+        });
     }
 
     _place() {
@@ -314,10 +357,7 @@ export class Familiar {
         const c = this._box / 2;
         cr.translate(c, c + (this._drawY ?? 0));
 
-        const react = this._settings.get_boolean('familiar-react-cpu');
-        const load = react ? this._cpu : 0;
-        const pulseSpeed = 1.2 + load * 4;
-        const pulse = (Math.sin(this._t * pulseSpeed) + 1) / 2 * (0.4 + load * 0.6);
+        const [glow, pulse] = this._glowAndPulse();
 
         const maxOff = c - S * 0.4;
         const tail = this._tail.slice(1).map(p => {
@@ -337,7 +377,7 @@ export class Familiar {
             facing: this._facing,
             blink: this._t < this._blinkUntil,
             mood: this._mood,
-            glow: cpuGlow(load),
+            glow,
             pulse,
             moving: this._moving,
             tail,
@@ -482,7 +522,7 @@ export class Familiar {
 
     _setMood(mood) {
         this._mood = mood;
-        this._actor?.queue_repaint();
+        this._redraw();
     }
 
     /** Show a mood for a moment, then go back to idle. */

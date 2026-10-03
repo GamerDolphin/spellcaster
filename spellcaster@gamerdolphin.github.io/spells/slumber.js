@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// ⬇️ Slumber: a dark curtain slowly lowers while glowing dust drifts up,
+// ⬇️ Slumber: night falls across the screen (stars, a rising moon) while
+// dreamy motes drift up,
 // your familiar curls up, and the PC suspends. Nothing is closed, so
 // everything is right where you left it when you wake the PC.
 //
-// Click anywhere or press Esc while the curtain is falling to cancel.
+// Click anywhere or press Esc while night is falling to cancel.
 
 import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
@@ -14,6 +15,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
 
 import {Palette, destroyer, rand} from '../lib/fx.js';
+import {runShader, shaderActor} from '../lib/shaders.js';
 
 export function cast(ctx) {
     const {fx, settings, familiar} = ctx;
@@ -26,30 +28,21 @@ export function cast(ctx) {
     let grab = Main.pushModal(catcher, {actionMode: Shell.ActionMode.POPUP});
     catcher.grab_key_focus();
 
-    // Each curtain is a dark body with a soft, feathered bottom edge.
+    // Night falls: a GPU-drawn starry sky with a rising moon sweeps down
+    // each monitor.
+    const smooth = t => t * t * (3 - 2 * t);
     const curtains = monitors.map(m => {
-        const feather = Math.round(m.height * 0.18);
-        const c = fx.add(new St.Widget({
-            x: m.x, y: m.y, width: m.width, height: m.height + feather,
-            translation_y: -(m.height + feather),
-            reactive: false,
-        }));
-        c.add_child(new St.Widget({
-            style: 'background-gradient-direction: vertical;' +
-                'background-gradient-start: rgba(14, 6, 34, 0.98);' +
-                'background-gradient-end: rgba(0, 0, 4, 1);',
-            x: 0, y: 0, width: m.width, height: m.height,
-        }));
-        c.add_child(new St.Widget({
-            style: 'background-gradient-direction: vertical;' +
-                'background-gradient-start: rgba(0, 0, 4, 1);' +
-                'background-gradient-end: rgba(0, 0, 4, 0);',
-            x: 0, y: m.height, width: m.width, height: feather,
-        }));
-        c.ease({translation_y: 0, duration: ms, mode: Clutter.AnimationMode.EASE_IN_OUT_SINE});
-        return c;
+        const {actor, shader} = shaderActor('night', {x: m.x, y: m.y, width: m.width, height: m.height});
+        fx.add(actor);
+        const aspect = m.width / m.height;
+        const night = {actor, shader, aspect, progress: 0, time: 0};
+        night.tl = runShader(actor, shader, ms, (p, secs) => {
+            night.progress = smooth(p);
+            night.time = secs;
+            shader.setAll({u_time: secs, u_progress: night.progress, u_aspect: aspect});
+        });
+        return night;
     });
-
     const primary = Main.layoutManager.primaryMonitor;
     const hint = fx.add(new St.Label({
         text: 'Sleeping… click to cancel',
@@ -61,31 +54,28 @@ export function cast(ctx) {
     hint.set_position(Math.round(primary.x + (primary.width - hw) / 2), Math.round(primary.y + primary.height * 0.82));
     hint.ease({opacity: 255, duration: 300});
 
-    // Dust drifting up while the curtain falls.
+    // A few dreamy motes drift up while night falls.
     let dustTimer = 0;
     const dust = () => {
         for (const m of monitors) {
-            for (let i = 0; i < Math.round(5 * fx.amount) + 1; i++) {
-                const star = Math.random() < 0.3;
-                fx.particle({
-                    kind: star ? 'sparkle' : 'orb',
-                    x: m.x + Math.random() * m.width,
-                    y: m.y + m.height - rand(0, m.height * 0.3),
-                    dx: rand(-25, 25),
-                    dy: -rand(120, 320),
-                    size: star ? rand(4, 7) : rand(2, 5),
-                    color: Palette.dream[Math.floor(Math.random() * Palette.dream.length)],
-                    spin: star ? rand(-90, 90) : 0,
-                    startScale: 1,
-                    endScale: 0.5,
-                    duration: rand(1400, 2200),
-                });
-            }
+            const star = Math.random() < 0.4;
+            fx.particle({
+                kind: star ? 'sparkle' : 'orb',
+                x: m.x + Math.random() * m.width,
+                y: m.y + m.height - rand(0, m.height * 0.25),
+                dx: rand(-20, 20),
+                dy: -rand(140, 300),
+                size: star ? rand(4, 7) : rand(2, 4),
+                color: Palette.dream[Math.floor(Math.random() * Palette.dream.length)],
+                spin: star ? rand(-90, 90) : 0,
+                startScale: 1,
+                endScale: 0.4,
+                duration: rand(1400, 2200),
+            });
         }
-        dustTimer = fx.later(110, dust);
+        dustTimer = fx.later(Math.round(160 / fx.amount), dust);
     };
     dust();
-
     familiar.curlUp();
 
     let finished = false;
@@ -108,10 +98,10 @@ export function cast(ctx) {
         } catch (e) {
             Main.notify('Spellcaster', `Slumber couldn't suspend: ${e.message}`);
         }
-        // Lift the curtain once we're asleep, so it's gone when you wake up.
+        // Lift the night once we're asleep, so it's gone when you wake up.
         fx.later(1500, () => {
             for (const c of curtains)
-                c.ease({opacity: 0, duration: 600, onStopped: destroyer(c)});
+                c.actor.ease({opacity: 0, duration: 600, onStopped: destroyer(c.actor)});
         });
     });
 
@@ -122,12 +112,14 @@ export function cast(ctx) {
         fx.cancelLater(sleepNow);
         releaseGrab();
         hint.ease({opacity: 0, duration: 200, onStopped: destroyer(hint)});
-        curtains.forEach(c => c.ease({
-            translation_y: -c.height,
-            duration: 450,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            onStopped: destroyer(c),
-        }));
+        // Day comes back: roll the night back up.
+        for (const c of curtains) {
+            c.tl.stop();
+            const from = c.progress, t0 = c.time;
+            runShader(c.actor, c.shader, 500, (p, secs) => {
+                c.shader.setAll({u_time: t0 + secs, u_progress: from * (1 - p), u_aspect: c.aspect});
+            }, destroyer(c.actor));
+        }
         familiar.wake();
     };
 

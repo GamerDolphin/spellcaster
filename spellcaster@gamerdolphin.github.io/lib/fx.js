@@ -266,7 +266,6 @@ export class Fx {
                 duration: rand(700, 1400),
             });
         }
-        this.flames(rect, Math.round(count / 4));
     }
 
     /** Flame tongues licking up from the bottom of a rectangle. */

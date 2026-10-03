@@ -47,6 +47,10 @@ dbus-run-session -- bash -c "
         --virtual-monitor 1920x1080 --wayland-display spellcaster-test 2>&1
 " > "$OUT/shell.log" || true
 
+if grep -q "Shader compilation failed\|Failed to link GLSL" "$OUT/shell.log"; then
+    echo "✗ A shader failed to compile:"
+    grep -A6 "Shader compilation failed" "$OUT/shell.log" | head -20
+fi
 echo "--- Spellcaster messages ---"
 grep -iE "SPELLTEST|spellcaster|JS ERROR|JS WARNING" "$OUT/shell.log" | grep -v "^$" | head -200 || true
 echo "Screenshots and results are in: $OUT"

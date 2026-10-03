@@ -1,96 +1,64 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// ⚡ Lightning Strike: a bolt cracks down and an app launches (or comes
-// to the front if it's already open).
+// ⚡ Lightning Strike: a crackling plasma bolt (GPU shader) strikes where
+// the rune ended, and an app launches (or comes to the front if it's
+// already open).
 
 import Shell from 'gi://Shell';
-import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {destroyer, mix, rand} from '../lib/fx.js';
+import {runShader, shaderActor} from '../lib/shaders.js';
 
-/** Jagged bolt from a to b by midpoint displacement. */
-function bolt(a, b, roughness, depth) {
-    if (depth === 0)
-        return [a, b];
-    const mid = {
-        x: (a.x + b.x) / 2 + rand(-1, 1) * roughness,
-        y: (a.y + b.y) / 2 + rand(-0.3, 0.3) * roughness,
-    };
-    const left = bolt(a, mid, roughness / 2, depth - 1);
-    const right = bolt(mid, b, roughness / 2, depth - 1);
-    return [...left.slice(0, -1), ...right];
+const BOLT_MS = 950;
+
+/** Brightness over the strike: two hard flashes, then a crackling fade. */
+function flicker(t) {
+    if (t < 0.06)
+        return t / 0.06;
+    if (t < 0.12)
+        return 0.35;
+    if (t < 0.2)
+        return 1.25;
+    if (t < 0.28)
+        return 0.5;
+    return Math.max(0, 1 - (t - 0.28) / 0.72) ** 0.6 * (0.8 + 0.2 * Math.sin(t * 90));
 }
 
 export function cast(ctx) {
     const {fx, result, settings, colors} = ctx;
     const m = ctx.monitor;
     const end = result.info.end;
-    const start = {x: end.x + rand(-m.width * 0.12, m.width * 0.12), y: m.y};
-    const len = Math.hypot(end.x - start.x, end.y - start.y);
+    const start = {x: end.x + rand(-m.width * 0.1, m.width * 0.1), y: m.y};
+    const uv = p => [(p.x - m.x) / m.width, (p.y - m.y) / m.height];
+    const len = (end.y - start.y) / m.height;
+    const color = mix(colors[0], [0.6, 0.75, 1], 0.45);
 
-    const main = bolt(start, end, len * 0.25, 6);
-    const branches = [];
-    for (let i = 0; i < 3; i++) {
-        const from = main[Math.floor(rand(0.2, 0.7) * main.length)];
-        const to = {x: from.x + rand(-1, 1) * len * 0.25, y: from.y + rand(0.1, 0.35) * len};
-        branches.push(bolt(from, to, len * 0.08, 4));
-    }
+    const {actor, shader} = shaderActor('bolt', {x: m.x, y: m.y, width: m.width, height: m.height});
+    fx.add(actor);
+    const seed = rand(0, 100);
+    const side = Math.random() < 0.5 ? -1 : 1;
+    runShader(actor, shader, BOLT_MS, (p, secs) => {
+        shader.setAll({
+            u_time: secs,
+            u_seed: seed,
+            u_intensity: flicker(p),
+            u_aspect: m.width / m.height,
+            u_a: uv(start),
+            u_b: uv(end),
+            u_b1: [side * len * 0.22, len * 0.3],
+            u_b2: [-side * len * 0.18, len * 0.22],
+            u_color: color,
+        });
+    }, destroyer(actor));
 
-    const area = fx.add(new St.DrawingArea({x: m.x, y: m.y, width: m.width, height: m.height, reactive: false}));
-    const color = mix(colors[0], [0.75, 0.85, 1], 0.5);
-    area.connect('repaint', a => {
-        const cr = a.get_context();
-        cr.translate(-m.x, -m.y);
-        cr.setLineCap(1);
-        cr.setLineJoin(1);
-        const path = pts => {
-            cr.moveTo(pts[0].x, pts[0].y);
-            for (const p of pts.slice(1))
-                cr.lineTo(p.x, p.y);
-        };
-        for (const [w, alpha, c] of [[34, 0.12, color], [16, 0.3, color], [8, 0.7, color], [3.5, 1, [1, 1, 1]]]) {
-            cr.setSourceRGBA(...c, alpha);
-            cr.setLineWidth(w);
-            path(main);
-            cr.stroke();
-            cr.setLineWidth(w * 0.5);
-            for (const b of branches) {
-                path(b);
-                cr.stroke();
-            }
-        }
-        cr.$dispose();
-    });
-
-    fx.flash(m, [0.92, 0.95, 1], 0.55, 260);
-    // Crackling glow along the bolt.
-    const step = Math.max(1, Math.floor(main.length / 14));
-    for (let i = 0; i < main.length; i += step) {
-        fx.particle({x: main[i].x, y: main[i].y, size: rand(5, 10), color: [0.88, 0.96, 1],
-            dx: rand(-10, 10), dy: rand(-10, 10), duration: rand(250, 450), endScale: 1.4});
-    }
-    // Impact: a ground ring, sparks and a few twinkles.
-    fx.shockwave(end.x, end.y, {color: color, size: 380, duration: 500});
-    fx.shockwave(end.x, end.y, {color: [1, 1, 1], size: 200, duration: 350});
-    fx.burst(end.x, end.y, {count: 36, colors: [[1, 1, 1], color, [0.65, 0.88, 1]], speed: 200, size: [2, 6], stars: 0.35, up: 40});
-
-    // Flicker, then fade.
-    const steps = [[60, 60], [255, 50], [90, 40], [255, 60], [0, 380]];
-    const done = destroyer(area);
-    const flicker = i => {
-        if (i >= steps.length) {
-            done();
-            return;
-        }
-        area.ease({opacity: steps[i][0], duration: steps[i][1], onComplete: () => flicker(i + 1),
-            onStopped: finished => {
-                if (!finished)
-                    done();
-            }});
-    };
-    flicker(0);
+    fx.flash(m, [0.9, 0.94, 1], 0.32, 220);
+    fx.later(140, () => fx.flash(m, [0.9, 0.94, 1], 0.18, 180));
+    // Impact: ground rings, sparks and a few twinkles.
+    fx.shockwave(end.x, end.y, {color, size: 420, duration: 550});
+    fx.shockwave(end.x, end.y, {color: [1, 1, 1], size: 220, duration: 350});
+    fx.burst(end.x, end.y, {count: 40, colors: [[1, 1, 1], color, [0.65, 0.88, 1]], speed: 220, size: [2, 6], stars: 0.35, up: 50});
 
     const appId = settings.get_string('lightning-app');
     const app = appId ? Shell.AppSystem.get_default().lookup_app(appId) : null;

@@ -190,7 +190,11 @@ async function run() {
     const top = testWindows().filter(w => !w.minimized).at(-1);
     const r = top.get_frame_rect();
     await cast(runes, 'spiral', r.x + r.width / 2, r.y + r.height / 2, 260, {shotName: '04-spiral-trail'});
-    await sleep(350);
+    await sleep(250);
+    await shot('05a-fireball-orb');
+    await sleep(450);
+    await shot('05b-fireball-boom');
+    await sleep(600);
     await shot('05-fireball');
     const closed = await waitFor(() => testWindows().length === before - 1, 4000);
     check('Fireball closes the window under the spiral', closed, `before=${before} after=${testWindows().length}`);
@@ -216,8 +220,12 @@ async function run() {
     settings.set_string('lightning-app', 'spellcaster-testwin.desktop');
     const n0 = testWindows().length;
     await cast(runes, 'lightning', cx - 300, cy, 300);
-    await sleep(120);
+    await sleep(40);
+    await shot('08a-lightning');
+    await sleep(160);
     await shot('08-lightning');
+    await sleep(150);
+    await shot('08b-lightning');
     const launched = await waitFor(() => testWindows().length > n0, 12000);
     check('Lightning Strike launches the app', launched, `before=${n0} after=${testWindows().length}`);
     await sleep(1000);
@@ -228,6 +236,14 @@ async function run() {
     check('Summon rune brings out the familiar', settings.get_boolean('familiar-visible') && sc()._familiar.visible);
     moveTo(cx - 400, cy + 200);
     await sleep(1500);
+    await shot('09a-familiar-spirit');
+    log(`FAMPOS ${Math.round(sc()._familiar.position.x)} ${Math.round(sc()._familiar.position.y)}`);
+    moveTo(cx + 300, cy - 150);
+    await sleep(700);
+    await shot('09b-familiar-spirit-moving');
+    log(`FAMPOS ${Math.round(sc()._familiar.position.x)} ${Math.round(sc()._familiar.position.y)}`);
+    settings.set_string('familiar-type', 'wisp');
+    await sleep(1200);
     await shot('09-familiar-wisp');
     settings.set_string('familiar-type', 'owl');
     await sleep(1200);
@@ -241,7 +257,7 @@ async function run() {
 
     // Enchant.
     await cast(runes, 'u', cx, cy, 300);
-    await sleep(900);
+    await sleep(1400);
     await shot('12-enchant');
     await sleep(1500);
 
@@ -252,7 +268,7 @@ async function run() {
     check('Freeze asks before locking', sc()._confirmDialog?.open && locks === 0);
     await shot('13a-confirm-freeze');
     sc()._confirmDialog.confirm();
-    await sleep(650);
+    await sleep(1100);
     await shot('13-freeze');
     await waitFor(() => locks > 0, 3000);
     check('Confirming Freeze locks the screen', locks === 1, `locks=${locks}`);
@@ -274,7 +290,7 @@ async function run() {
     check('Slumber asks before sleeping', sc()._confirmDialog?.open && suspends === 0);
     await shot('14a-confirm-slumber');
     sc()._confirmDialog.confirm();
-    await sleep(700);
+    await sleep(800);
     await shot('14-slumber-curtain');
     moveTo(cx, cy);
     press();

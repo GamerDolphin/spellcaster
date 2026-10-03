@@ -72,7 +72,7 @@
     </key>
     <key name="slumber-curtain-ms" type="i">
       <range min="500" max="6000"/>
-      <default>1500</default>
+      <default>2200</default>
       <summary>How long the Slumber curtain takes (time to cancel)</summary>
     </key>
     <key name="slumber-wake-sparkle" type="b">
@@ -86,8 +86,8 @@
       <summary>Whether the familiar is summoned</summary>
     </key>
     <key name="familiar-type" type="s">
-      <choices><choice value="wisp"/><choice value="owl"/><choice value="dragon"/></choices>
-      <default>'wisp'</default>
+      <choices><choice value="spirit"/><choice value="wisp"/><choice value="owl"/><choice value="dragon"/></choices>
+      <default>'spirit'</default>
       <summary>Which familiar</summary>
     </key>
     <key name="familiar-mode" type="s">
@@ -97,7 +97,7 @@
     </key>
     <key name="familiar-size" type="i">
       <range min="16" max="96"/>
-      <default>36</default>
+      <default>44</default>
       <summary>Familiar size in pixels</summary>
     </key>
     <key name="familiar-opacity" type="d">

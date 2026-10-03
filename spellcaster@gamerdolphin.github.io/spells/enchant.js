@@ -13,6 +13,9 @@ import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 
+import {destroyer} from '../lib/fx.js';
+import {runShader, shaderActor} from '../lib/shaders.js';
+
 const QUICK_LOFI_UUID = 'quick-lofi@eucaue';
 const QUICK_LOFI_BUS = 'org.mpris.MediaPlayer2.QuickLofi';
 const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
@@ -112,7 +115,16 @@ export function cast(ctx) {
     const {x, y} = ctx.result.info.center;
     fx.sigil(x, y, {colors: [[1, 0.55, 0.88], [1, 0.85, 0.4]], size: 260, hold: 400, spin: -160});
     fx.shockwave(x, y, {color: [1, 0.6, 0.9], size: 320, duration: 650});
-    for (const m of Main.layoutManager.monitors)
-        fx.sparkleRain(m, 80);
+    for (const m of Main.layoutManager.monitors) {
+        // Aurora ribbons sweep across the top of each screen.
+        const h = Math.round(m.height * 0.6);
+        const {actor, shader} = shaderActor('aurora', {x: m.x, y: m.y, width: m.width, height: h});
+        fx.add(actor);
+        runShader(actor, shader, 3200, (p, secs) => {
+            shader.setAll({u_time: secs, u_progress: p, u_aspect: m.width / h,
+                u_c1: [1, 0.45, 0.85], u_c2: [1, 0.82, 0.35]});
+        }, destroyer(actor));
+        fx.sparkleRain(m, 45);
+    }
     toggleMusic(ctx.settings).catch(e => console.warn(`Spellcaster: Enchant failed: ${e}`));
 }
