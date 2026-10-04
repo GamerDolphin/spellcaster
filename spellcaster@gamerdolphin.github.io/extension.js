@@ -11,6 +11,7 @@ import * as LoginManager from 'resource:///org/gnome/shell/misc/loginManager.js'
 
 import {CastOverlay} from './lib/castOverlay.js';
 import {confirmSpell} from './lib/confirm.js';
+import {SoundMode} from './lib/soundMode.js';
 import {Familiar} from './lib/familiar.js';
 import {Fx, Palette} from './lib/fx.js';
 import {RUNE_INFO, spellInfo} from './lib/runes.js';
@@ -37,6 +38,11 @@ const SPELLS = {
     'freeze': Freeze.cast,
     'summon': Summon.cast,
     'enchant': Enchant.cast,
+    'sound': ctx => {
+        const {x, y} = ctx.result.info.center;
+        ctx.fx.shockwave(x, y, {color: ctx.colors[0], size: 300, duration: 550});
+        ctx.sound.toggle(ctx.colors);
+    },
     'slumber': Slumber.cast,
     'screenshot': Extras.screenshot,
     'overview': Extras.overview,
@@ -56,6 +62,7 @@ export default class SpellcasterExtension extends Extension {
         this._settings = this.getSettings();
         this._fx = new Fx(this._settings, this.path);
         this._familiar = new Familiar(this._settings, this._fx);
+        this._sound = new SoundMode(this._fx);
 
         this._overlay = new CastOverlay(this._settings, this._fx, {
             onBegin: () => this._familiar.onCastBegin(),
@@ -67,7 +74,13 @@ export default class SpellcasterExtension extends Extension {
         Main.wm.addKeybinding('cast-shortcut', this._settings,
             Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW | Shell.ActionMode.POPUP,
-            () => this._overlay.toggle());
+            () => {
+                // While Sound Control is on, the shortcut just ends it.
+                if (this._sound.active)
+                    this._sound.exit();
+                else
+                    this._overlay.toggle();
+            });
 
         // Waking from Slumber without a lock screen in between.
         this._sleepId = LoginManager.getLoginManager().connect('prepare-for-sleep', (_lm, aboutToSuspend) => {
@@ -86,6 +99,8 @@ export default class SpellcasterExtension extends Extension {
         Main.wm.removeKeybinding('cast-shortcut');
         LoginManager.getLoginManager().disconnect(this._sleepId);
         this._overlay.destroy();
+        this._sound.destroy();
+        this._sound = null;
         this._familiar.destroy();
         Portal.reset();
         this._fx.destroy();
@@ -119,6 +134,7 @@ export default class SpellcasterExtension extends Extension {
             settings: this._settings,
             fx: this._fx,
             familiar: this._familiar,
+            sound: this._sound,
             onSlumber: () => {
                 wakeSparklePending = this._settings.get_boolean('slumber-wake-sparkle');
             },

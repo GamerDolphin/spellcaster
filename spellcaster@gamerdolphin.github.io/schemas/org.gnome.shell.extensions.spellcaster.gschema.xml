@@ -40,7 +40,7 @@
     <key name="rune-circle" type="s"><default>'portal'</default><summary>Spell for the circle rune</summary></key>
     <key name="rune-v" type="s"><default>'freeze'</default><summary>Spell for the V rune</summary></key>
     <key name="rune-caret" type="s"><default>'summon'</default><summary>Spell for the Λ rune</summary></key>
-    <key name="rune-u" type="s"><default>'enchant'</default><summary>Spell for the U rune</summary></key>
+    <key name="rune-u" type="s"><default>'sound'</default><summary>Spell for the U rune</summary></key>
     <key name="rune-line" type="s"><default>'slumber'</default><summary>Spell for the line-down rune</summary></key>
     <key name="rune-commands" type="a{ss}">
       <default>{}</default>

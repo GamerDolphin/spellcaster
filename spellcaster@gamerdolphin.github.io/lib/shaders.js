@@ -515,7 +515,59 @@ const SIGIL = {
 `,
 };
 
-const SHADERS = {trail: TRAIL, sigil: SIGIL, fireball: FIREBALL, burn: BURN, night: NIGHT, frost: FROST, bolt: BOLT, aurora: AURORA, spirit: SPIRIT};
+// --- Volume ring (Sound Control) --------------------------------------------------
+const VOLRING = {
+    decl: `uniform float u_time; uniform float u_level; uniform float u_muted; uniform float u_pop;
+        uniform vec3 u_c1; uniform vec3 u_c2;`,
+    code: `
+    vec2 p = (cogl_tex_coord_in[0].xy - 0.5) * 2.0;
+    float r = length(p);
+    float TAU = 6.28318;
+    // 0 at the top, going clockwise.
+    float a01 = fract(atan(p.x, -p.y) / TAU + 1.0);
+    float R = 0.7 + 0.04 * u_pop;
+    float w = 0.075;
+    float band = smoothstep(w, w * 0.55, abs(r - R));
+    float lvl = clamp(u_level, 0.0, 1.0);
+    float filled = smoothstep(lvl + 0.004, lvl - 0.004, a01);
+    // Track, filled arc with a gradient, and a bright orb at the end.
+    vec3 arc = mix(u_c1, u_c2, a01);
+    float flow = 0.75 + 0.25 * sin(a01 * 40.0 - u_time * 6.0);
+    vec2 tipP = vec2(sin(lvl * TAU), -cos(lvl * TAU)) * R;
+    float tip = exp(-dot(p - tipP, p - tipP) / 0.006) * step(0.001, lvl);
+    float glow = exp(-sq0((r - R) / 0.16)) * filled * (0.35 + 0.25 * u_pop);
+    // Ticks every 10%.
+    float tick = step(fract(a01 * 10.0 + 0.5), 0.05) * smoothstep(0.02, 0.0, abs(r - (R + 0.13)));
+    // Muted: grey ring with a red slash.
+    float slash = smoothstep(0.035, 0.02, abs(p.x + p.y) / 1.414) * step(r, R - 0.06) * u_muted;
+    vec3 trackC = vec3(0.2, 0.15, 0.3);
+    float trackA = band * 0.55;
+    vec3 col = trackC * trackA;
+    float a = trackA;
+    float fa = band * filled;
+    vec3 fc = mix(arc * flow, vec3(0.6), u_muted);
+    col = mix(col, fc * fa, fa);
+    a = max(a, fa);
+    col = mix(col, mix(arc, vec3(0.6), u_muted) * glow, (1.0 - a) * step(0.001, glow));
+    a = max(a, glow);
+    float ta = clamp(tip * (1.0 - u_muted), 0.0, 1.0);
+    col = mix(col, vec3(ta), ta);
+    a = max(a, ta);
+    float tka = tick * 0.6;
+    col = mix(col, vec3(tka), tka);
+    a = max(a, tka);
+    // Dark disc behind the speaker icon.
+    float disc = smoothstep(0.42, 0.38, r) * 0.85;
+    col = mix(col, vec3(0.1, 0.04, 0.2) * disc, disc * (1.0 - a));
+    a = max(a, disc);
+    vec3 red = vec3(1.0, 0.3, 0.35);
+    col = mix(col, red * slash, slash);
+    a = max(a, slash);
+    cogl_color_out = vec4(col, a);
+`,
+};
+
+const SHADERS = {volring: VOLRING, trail: TRAIL, sigil: SIGIL, fireball: FIREBALL, burn: BURN, night: NIGHT, frost: FROST, bolt: BOLT, aurora: AURORA, spirit: SPIRIT};
 
 function fullSource(src) {
     // Clamp so nothing is brighter than white, keep it valid premultiplied

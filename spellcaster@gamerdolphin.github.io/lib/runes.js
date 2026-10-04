@@ -21,6 +21,7 @@ export const SPELL_INFO = [
     {id: 'portal', name: 'Portal', desc: 'Pull every window into a portal (show desktop). Cast again to bring them back'},
     {id: 'freeze', name: 'Freeze', desc: 'Frost over and lock the screen'},
     {id: 'summon', name: 'Summon', desc: 'Summon or dismiss your familiar'},
+    {id: 'sound', name: 'Sound Control', desc: 'Your mouse controls the volume (left quieter, right louder, middle mute) until you press Space'},
     {id: 'enchant', name: 'Enchant', desc: 'Play or pause music (Quick Lofi first)'},
     {id: 'slumber', name: 'Slumber', desc: 'Lower the curtain and suspend the PC'},
     {id: 'screenshot', name: 'Snapshot', desc: 'Open the screenshot tool'},

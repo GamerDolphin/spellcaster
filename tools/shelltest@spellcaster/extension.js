@@ -295,11 +295,49 @@ async function run() {
     await sleep(800);
     await shot('11b-familiar-bigger');
 
-    // Enchant.
+    // Sound Control (U). The test session has no audio, so use a pretend speaker.
+    const fake = {volume: 50000, is_muted: false, push_volume() {}, change_is_muted(v) {
+        this.is_muted = v;
+    }};
+    sc()._sound._getSink = () => fake;
+    sc()._sound._maxNorm = () => 100000;
+    await cast(runes, 'u', cx, cy, 300);
+    await sleep(700);
+    check('U rune starts Sound Control', sc()._sound.active);
+    moveTo(cx + 200, cy + 100);
+    await sleep(200);
+    const click = btn => {
+        pointer.notify_button(now(), btn, Clutter.ButtonState.PRESSED);
+        pointer.notify_button(now(), btn, Clutter.ButtonState.RELEASED);
+    };
+    click(Clutter.BUTTON_PRIMARY);
+    await sleep(150);
+    check('Left click lowers the volume', fake.volume === 45000, `volume=${fake.volume}`);
+    click(Clutter.BUTTON_SECONDARY);
+    click(Clutter.BUTTON_SECONDARY);
+    await sleep(150);
+    check('Right click raises the volume', fake.volume === 55000, `volume=${fake.volume}`);
+    await sleep(250);
+    await shot('12s-sound-control');
+    click(Clutter.BUTTON_MIDDLE);
+    await sleep(300);
+    check('Middle click mutes', fake.is_muted === true);
+    await shot('12m-sound-muted');
+    click(Clutter.BUTTON_MIDDLE);
+    await sleep(150);
+    check('Middle click again unmutes', fake.is_muted === false);
+    key(Clutter.KEY_space, true);
+    key(Clutter.KEY_space, false);
+    await sleep(400);
+    check('Space leaves Sound Control', !sc()._sound.active);
+
+    // Enchant (bound to U just for this test).
+    settings.set_string('rune-u', 'enchant');
     await cast(runes, 'u', cx, cy, 300);
     await sleep(1400);
     await shot('12-enchant');
     await sleep(1500);
+    settings.reset('rune-u');
 
     // Freeze asks first.
     settings.set_int('confirm-seconds', 10);
