@@ -288,9 +288,32 @@ async function run() {
     settings.set_string('familiar-type', 'owl');
     await sleep(1200);
     await shot('10-familiar-owl');
+    log(`FAMPOS ${Math.round(sc()._familiar.position.x)} ${Math.round(sc()._familiar.position.y)}`);
+    // Owl delivers notifications.
+    Main.notify('Pizza is here', 'Come get it while it is hot');
+    await sleep(900);
+    const owlSaid = sc()._familiar._bubble?.text ?? '';
+    check('Owl announces a new notification', owlSaid.includes('Pizza'), `bubble="${owlSaid}"`);
+    await shot('10b-owl-message');
+    await sleep(4500);
+
     settings.set_string('familiar-type', 'dragon');
     await sleep(1200);
     await shot('11-familiar-dragon');
+    log(`FAMPOS ${Math.round(sc()._familiar.position.x)} ${Math.round(sc()._familiar.position.y)}`);
+    // Dragon guards the battery.
+    sc()._powers.onBattery(60, 2);
+    sc()._powers.onBattery(18, 2);
+    await sleep(500);
+    const dragonSaid = sc()._familiar._bubble?.text ?? '';
+    check('Dragon warns about a low battery', dragonSaid.includes('18%'), `bubble="${dragonSaid}"`);
+    check('Dragon breathes fire when warning', sc()._familiar._breath > 0, `breath=${sc()._familiar._breath}`);
+    await shot('11b-dragon-battery');
+    await sleep(1500);
+    sc()._powers.onBattery(18, 1);
+    await sleep(400);
+    check('Dragon cheers when charging', (sc()._familiar._bubble?.text ?? '').includes('Charging'));
+    await sleep(1000);
     settings.set_int('familiar-size', 48);
     await sleep(800);
     await shot('11b-familiar-bigger');

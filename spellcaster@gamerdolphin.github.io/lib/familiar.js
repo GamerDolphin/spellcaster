@@ -17,8 +17,15 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {CpuWatch} from './systemWatch.js';
 import {cpuGlow, draw} from './familiarArt.js';
-import {shaderActor} from './shaders.js';
+import {runShader, shaderActor} from './shaders.js';
 import {Palette, destroyer, monitorAt, rand} from './fx.js';
+
+// Familiars drawn by shaders, and how big their box is (× size).
+const SHADER_FAMILIARS = {
+    spirit: {box: 4.2},
+    owl: {box: 3.2},
+    dragon: {box: 3.6},
+};
 
 const FPS_AWAKE = 30;
 const FPS_ASLEEP = 8;
@@ -103,14 +110,16 @@ export class Familiar {
 
     _create(quiet) {
         const S = this._size;
-        // The Spirit is drawn by a GPU shader and needs room for its tail.
-        this._isSpirit = this._settings.get_string('familiar-type') === 'spirit';
-        const box = Math.ceil(S * (this._isSpirit ? 4.2 : 3.2));
+        // Spirit, Owl and Dragon are drawn by GPU shaders; the Wisp by Cairo.
+        const type = this._settings.get_string('familiar-type');
+        this._shaderType = SHADER_FAMILIARS[type] ? type : null;
+        const box = Math.ceil(S * (SHADER_FAMILIARS[type]?.box ?? 3.2));
         this._box = box;
         this._vel = {x: 0, y: 0};
+        this._breath = 0;
 
-        if (this._isSpirit) {
-            const {actor, shader} = shaderActor('spirit', {x: 0, y: 0, width: box, height: box});
+        if (this._shaderType) {
+            const {actor, shader} = shaderActor(this._shaderType, {x: 0, y: 0, width: box, height: box});
             this._actor = actor;
             this._shader = shader;
             actor.set({opacity: 0, pivot_point: new Graphene.Point({x: 0.5, y: 0.5})});
@@ -337,6 +346,7 @@ export class Familiar {
         this._actor.opacity = Math.round(255 * this._opacity);
 
         this._place();
+        this._placeBubble();
         this._redraw();
     }
 
@@ -356,16 +366,23 @@ export class Familiar {
         const [glow, pulse] = this._glowAndPulse();
         const MOODS = {idle: 0, watch: 1, happy: 2, oops: 3, sleep: 4};
         this._actor.translation_y = this._drawY ?? 0;
-        this._shader.setAll({
+        const u = {
             u_time: this._t,
-            u_vel: [this._vel.x, this._vel.y],
             u_look: [this._look.x, this._look.y],
             u_blink: this._t < this._blinkUntil ? 1 : 0,
             u_mood: MOODS[this._mood] ?? 0,
             u_glow: glow,
             u_pulse: pulse,
             u_alpha: 1,
-        });
+        };
+        if (this._shaderType === 'spirit') {
+            u.u_vel = [this._vel.x, this._vel.y];
+        } else {
+            u.u_facing = this._facing < 0 ? -1 : 1;
+            u.u_flap = this._moving;
+            u.u_breath = this._breath;
+        }
+        this._shader.setAll(u);
     }
 
     _place() {
@@ -588,6 +605,98 @@ export class Familiar {
         return this._pos;
     }
 
+    get type() {
+        return this._settings.get_string('familiar-type');
+    }
+
+    get awake() {
+        return this._actor !== null && !this._hiddenFullscreen;
+    }
+
+    /** Show a little speech bubble above the familiar. */
+    say(text, ms = 4000) {
+        if (!this._actor || this._hiddenFullscreen)
+            return;
+        if (this._mood === 'sleep')
+            this.wake();
+        this._bubble?.destroy();
+        const b = new St.Label({text, style_class: 'spellcaster-bubble', opacity: 0, reactive: false});
+        this._fx.add(b);
+        this._bubble = b;
+        b.connect('destroy', () => {
+            if (this._bubble === b)
+                this._bubble = null;
+        });
+        this._placeBubble();
+        b.set_pivot_point(0.5, 1);
+        b.set_scale(0.6, 0.6);
+        b.ease({opacity: 255, scale_x: 1, scale_y: 1, duration: 250, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+        const done = destroyer(b);
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+            if (this._bubble === b)
+                b.ease({opacity: 0, duration: 300, onStopped: done});
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _placeBubble() {
+        const b = this._bubble;
+        if (!b || !this._pos)
+            return;
+        const [, w] = b.get_preferred_width(-1);
+        const [, h] = b.get_preferred_height(-1);
+        const top = Main.layoutManager.panelBox.height + 4;
+        b.set_position(Math.round(this._pos.x - w / 2), Math.round(Math.max(top, this._pos.y - this._box * 0.42 - h)));
+    }
+
+    /** A happy hop and flap. */
+    excite() {
+        if (!this._actor)
+            return;
+        this.flashMood('happy', 1400);
+        this._actor.ease({
+            translation_y: -14, duration: 160, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => this._actor?.ease({translation_y: 0, duration: 380, mode: Clutter.AnimationMode.EASE_OUT_BOUNCE}),
+        });
+    }
+
+    /** Dragon only: breathe fire toward a point (or straight ahead). */
+    breathe(target = null, ms = 1100) {
+        if (!this._actor || this._shaderType !== 'dragon' || this._hiddenFullscreen)
+            return;
+        if (this._mood === 'sleep')
+            this.wake();
+        if (target)
+            this._facing = target.x >= this._pos.x ? 1 : -1;
+        const f = this._facing < 0 ? -1 : 1;
+        const half = this._box / 2;
+        const mouth = {x: this._pos.x + f * 0.57 * half, y: this._pos.y - 0.22 * half};
+        const len = Math.max(this._box * 1.6, target ? Math.min(600, Math.hypot(target.x - mouth.x, target.y - mouth.y)) : 0);
+        const hgt = this._box * 0.75;
+        const {actor, shader} = shaderActor('breath', {x: mouth.x, y: mouth.y - hgt / 2, width: len, height: hgt});
+        this._fx.add(actor);
+        actor.set_pivot_point(0, 0.5);
+        const ang = target ? Math.atan2(target.y - mouth.y, target.x - mouth.x) : (f > 0 ? 0 : Math.PI);
+        actor.rotation_angle_z = ang * 180 / Math.PI;
+        this._breath = 1;
+        runShader(actor, shader, ms, (p, secs) => {
+            const power = p < 0.25 ? p / 0.25 : p > 0.75 ? (1 - p) / 0.25 : 1;
+            shader.setAll({u_time: secs, u_power: power});
+            this._breath = power;
+        }, () => {
+            this._breath = 0;
+            actor.destroy();
+        });
+    }
+
+    /** Called after a spell is cast, so familiars can join in. */
+    onSpell(spellId, point) {
+        if (!this._actor)
+            return;
+        if (spellId === 'fireball' && this._shaderType === 'dragon')
+            this.breathe(point);
+    }
+
     destroy() {
         for (const id of this._settingsIds)
             this._settings.disconnect(id);
@@ -598,5 +707,11 @@ export class Familiar {
             actor.destroy();
         }
         this._cpuWatch.stop();
+        this._bubble?.destroy();
+    }
+
+    /** Current CPU load 0..1 (only updated while CPU glow is on). */
+    get cpu() {
+        return this._cpu;
     }
 }

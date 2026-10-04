@@ -442,7 +442,7 @@ function familiarPage(b) {
     const page = new Adw.PreferencesPage({title: 'Familiar', icon_name: 'emote-love-symbolic'});
 
     // Live preview.
-    const preview = new Adw.PreferencesGroup({title: 'Your familiar', description: 'Move your mouse over it.'});
+    const preview = new Adw.PreferencesGroup({title: 'Your familiar', description: 'Move your mouse over it. (A simple preview; on your desktop the Spirit, Owl and Dragon are drawn live on your GPU.)'});
     const area = new Gtk.DrawingArea({content_height: 170, hexpand: true});
     area.add_css_class('card');
     let t = 0, look = {x: 0, y: 0}, mouse = null, blinkUntil = 0, nextBlink = 2;

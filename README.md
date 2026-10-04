@@ -17,14 +17,16 @@ Every rune is **one quick stroke**. You never lift the mouse, and there are no s
 | ⭕ Circle | One loop | **Portal** | Every window spirals into a portal. Cast it again and they fly back out |
 | ✔️ V | Down, then up | **Freeze** | Frost spreads over the screen, then it locks |
 | ⛰️ Λ | Up, then down | **Summon** | Your familiar appears, or goes away if it's already out |
-| 🥣 U | A smooth cup | **Enchant** | Sparkles fall and lofi starts or pauses (Quick Lofi first) |
+| 🥣 U | A smooth cup | **Sound Control** | Your mouse becomes a volume knob: left click quieter, right click louder, middle click mute, scroll for fine steps, Space when done |
 | ⬇️ Line down | One straight stroke | **Slumber** | A curtain falls and the PC **suspends**. Click during the curtain to cancel |
 
 Esc or a right-click cancels casting. A stroke that isn't a rune just **fizzles**.
 
 🛡️ **Freeze and Slumber ask first.** A small popup with **Cancel** / **Freeze** (or **Sleep**) appears, and it cancels itself after 10 seconds if you do nothing, so a mis-drawn rune never locks or sleeps your PC. You can turn this off or change the timer in the Spellbook.
 
-Any rune can be rebound in the Spellbook to: Snapshot (screenshot), Scry (overview), Step Left/Right (workspaces), a custom command, or nothing.
+![Sound Control](docs/screenshots/sound.png)
+
+Any rune can be rebound in the Spellbook to: Enchant (aurora + play/pause music), Snapshot (screenshot), Scry (overview), Step Left/Right (workspaces), a custom command, or nothing.
 
 | | |
 |---|---|
@@ -46,19 +48,25 @@ The smaller particles use a hand-built texture set: glowing orbs, twinkling star
 
 ![Wisp, owl and tiny dragon](docs/screenshots/familiars.png)
 
-A familiar keeps you company. The default is the **Spirit**, a little flame creature drawn live on your GPU: its flame flickers, its tail streams behind it as it moves, and it glows blue → purple → orange with your CPU load. There's also a **wisp**, an **owl** and a **tiny dragon**.
+A familiar keeps you company, and each one has a job:
 
-![The Spirit](docs/screenshots/spirit.png)
+| Familiar | Job |
+|---|---|
+| ✨ **Spirit** (default) | **CPU Watcher**: a flickering flame creature that glows blue → purple → orange with your CPU, and warns you if it stays maxed out |
+| 🦉 **Owl** | **Messenger**: announces new notifications in a speech bubble and hoots the hour |
+| 🐉 **Tiny Dragon** | **Battery Guardian**: breathes fire and warns you at 20 %, 10 % and 5 %, cheers when you plug in, and breathes fire along with your Fireball |
+| 💫 **Wisp** | A simple glowing companion |
 
- It's built to never get in the way:
+![The Spirit](docs/screenshots/spirit.png) ![The Owl delivering a message](docs/screenshots/owl.png) ![The Dragon warning about the battery](docs/screenshots/dragon.png)
 
-- your clicks pass straight through it
-- it keeps its distance, and fades and drifts off if your cursor gets close
-- it **hides while a game or video is fullscreen**
-- it never makes a sound
-- it naps under the top bar when you're idle (*z z z*)
-- it glows **blue → purple → orange** as your CPU gets busier
-- it watches you cast, spins when a spell works, and goes "oops" when one fizzles
+They're built to never get in the way:
+
+- your clicks pass straight through them
+- they keep their distance, and fade almost to nothing when your cursor gets close
+- they **hide while a game or video is fullscreen**
+- they never make a sound
+- after **30 seconds without mouse movement** they float up under the top bar and sleep (*z z z*); move the mouse and they wake up
+- they watch you cast, celebrate when a spell works, and go "oops" when one fizzles
 
 You can set it to *Follow* (lazily trails the cursor), *Perch* (sits in a corner) or *Wander* (drifts around the screen edges).
 

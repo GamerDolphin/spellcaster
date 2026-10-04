@@ -13,6 +13,7 @@ import {CastOverlay} from './lib/castOverlay.js';
 import {confirmSpell} from './lib/confirm.js';
 import {SoundMode} from './lib/soundMode.js';
 import {Familiar} from './lib/familiar.js';
+import {FamiliarPowers} from './lib/familiarPowers.js';
 import {Fx, Palette} from './lib/fx.js';
 import {RUNE_INFO, spellInfo} from './lib/runes.js';
 
@@ -63,6 +64,7 @@ export default class SpellcasterExtension extends Extension {
         this._fx = new Fx(this._settings, this.path);
         this._familiar = new Familiar(this._settings, this._fx);
         this._sound = new SoundMode(this._fx);
+        this._powers = new FamiliarPowers(this._familiar, this._settings);
 
         this._overlay = new CastOverlay(this._settings, this._fx, {
             onBegin: () => this._familiar.onCastBegin(),
@@ -101,6 +103,8 @@ export default class SpellcasterExtension extends Extension {
         this._overlay.destroy();
         this._sound.destroy();
         this._sound = null;
+        this._powers.destroy();
+        this._powers = null;
         this._familiar.destroy();
         Portal.reset();
         this._fx.destroy();
@@ -171,6 +175,7 @@ export default class SpellcasterExtension extends Extension {
             return;
         try {
             spell(ctx);
+            this._familiar.onSpell(spellId, ctx.result.info.center);
         } catch (e) {
             console.error(`Spellcaster: ${spellId} failed: ${e}\n${e.stack}`);
             Main.notify('Spellcaster', `The ${spellInfo(spellId).name} spell failed: ${e.message}`);

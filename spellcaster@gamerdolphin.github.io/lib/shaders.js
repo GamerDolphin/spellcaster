@@ -567,7 +567,289 @@ const VOLRING = {
 `,
 };
 
-const SHADERS = {volring: VOLRING, trail: TRAIL, sigil: SIGIL, fireball: FIREBALL, burn: BURN, night: NIGHT, frost: FROST, bolt: BOLT, aurora: AURORA, spirit: SPIRIT};
+// --- Owl and Dragon familiars ------------------------------------------------------
+// Built from soft shapes (signed distance fields) with fake 3D shading, a rim
+// light in the familiar's glow colour and a thin dark outline.
+const CREATURE_COMMON = `
+uniform float u_time; uniform vec2 u_look; uniform float u_blink; uniform float u_mood;
+uniform vec3 u_glow; uniform float u_pulse; uniform float u_alpha; uniform float u_facing;
+uniform float u_flap; uniform float u_breath;
+float fa_ell(vec2 p, vec2 r) {
+    float k0 = length(p / r);
+    float k1 = length(p / (r * r));
+    return k0 * (k0 - 1.0) / max(k1, 0.0001);
+}
+float fa_seg(vec2 p, vec2 a, vec2 b, float r) {
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    return length(pa - ba * h) - r;
+}
+vec2 fa_rot(vec2 p, float a) {
+    float c = cos(a);
+    float s = sin(a);
+    return vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+}
+float fa_smin(float a, float b, float k) {
+    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+}
+float fa_tri(vec2 p, vec2 a, vec2 b, vec2 c) {
+    vec2 e0 = b - a; vec2 e1 = c - b; vec2 e2 = a - c;
+    vec2 v0 = p - a; vec2 v1 = p - b; vec2 v2 = p - c;
+    vec2 pq0 = v0 - e0 * clamp(dot(v0, e0) / dot(e0, e0), 0.0, 1.0);
+    vec2 pq1 = v1 - e1 * clamp(dot(v1, e1) / dot(e1, e1), 0.0, 1.0);
+    vec2 pq2 = v2 - e2 * clamp(dot(v2, e2) / dot(e2, e2), 0.0, 1.0);
+    float s = sign(e0.x * e2.y - e0.y * e2.x);
+    vec2 d = min(min(vec2(dot(pq0, pq0), s * (v0.x * e0.y - v0.y * e0.x)),
+                     vec2(dot(pq1, pq1), s * (v1.x * e1.y - v1.y * e1.x))),
+                     vec2(dot(pq2, pq2), s * (v2.x * e2.y - v2.y * e2.x)));
+    return -sqrt(d.x) * sign(d.y);
+}
+// Shade a roundish part: q is the point relative to its centre, r its radii.
+vec3 fa_shade(vec3 base, vec2 q, vec2 r) {
+    vec2 n2 = clamp(q / r, -1.0, 1.0);
+    float z = sqrt(max(0.0, 1.0 - dot(n2, n2)));
+    vec3 n = normalize(vec3(n2, z + 0.15));
+    float diff = clamp(dot(n, normalize(vec3(-0.45, -0.6, 0.66))), 0.0, 1.0);
+    float rim = pow(1.0 - z, 2.5);
+    return base * (0.45 + 0.7 * diff) + u_glow * rim * 0.5;
+}
+// Paint helper: lay colour c with coverage a on top.
+void fa_over(inout vec3 col, inout float alpha, vec3 c, float a) {
+    col = mix(col, c, a);
+    alpha = max(alpha, a);
+}
+float fa_fill(float d) {
+    return smoothstep(0.012, -0.004, d);
+}
+float fa_line(float d) {
+    return smoothstep(0.022, 0.008, abs(d)) ;
+}
+`;
+
+const OWL = {
+    decl: CREATURE_COMMON,
+    code: `
+    vec2 p = (cogl_tex_coord_in[0].xy - 0.5) * 2.0;
+    float t = u_time;
+    float sleeping = step(3.5, u_mood);
+    // Gentle bob, a head tilt toward where it's looking.
+    vec2 q = p / 0.62;
+    q.y += sin(t * 2.0) * 0.02;
+    vec3 col = vec3(0.0);
+    float a = 0.0;
+
+    // Aura.
+    float aura = exp(-length(p) * 2.6) * (0.35 + 0.25 * u_pulse);
+    fa_over(col, a, u_glow, aura * 0.6);
+
+    vec3 plum = vec3(0.42, 0.29, 0.62);
+    vec3 dark = vec3(0.27, 0.18, 0.42);
+    vec3 cream = vec3(0.88, 0.8, 0.95);
+    vec3 gold = vec3(1.0, 0.72, 0.28);
+
+    // Wings (behind), flapping when moving.
+    float flap = sin(t * 13.0) * 0.45 * u_flap;
+    for (int k = 0; k < 2; k++) {
+        float sd = k == 0 ? -1.0 : 1.0;
+        vec2 wq = fa_rot(q - vec2(sd * 0.56, 0.12), sd * (0.25 + flap));
+        float w = fa_ell(wq - vec2(0.0, 0.22), vec2(0.22, 0.5));
+        vec3 wc = fa_shade(dark, wq - vec2(0.0, 0.22), vec2(0.22, 0.5));
+        float feather = 0.85 + 0.15 * step(0.5, fract(wq.y * 9.0));
+        fa_over(col, a, wc * feather, fa_fill(w));
+        fa_over(col, a, dark * 0.35, fa_line(w) * fa_fill(w - 0.02));
+    }
+    // Feet.
+    for (int k = 0; k < 2; k++) {
+        float sd = k == 0 ? -1.0 : 1.0;
+        float f = fa_ell(q - vec2(sd * 0.2, 0.86), vec2(0.12, 0.06));
+        fa_over(col, a, fa_shade(gold, q - vec2(sd * 0.2, 0.86), vec2(0.12, 0.06)), fa_fill(f));
+    }
+    // Body + head as one soft shape, with ear tufts.
+    vec2 hq = q - vec2(0.0, -0.4);
+    hq = fa_rot(hq, u_look.x * 0.12 * (1.0 - sleeping));
+    float body = fa_ell(q - vec2(0.0, 0.15), vec2(0.6, 0.7));
+    float head = fa_ell(hq, vec2(0.56, 0.5));
+    float tufts = min(fa_tri(hq, vec2(-0.52, -0.2), vec2(-0.46, -0.78), vec2(-0.18, -0.4)),
+                      fa_tri(hq, vec2(0.52, -0.2), vec2(0.46, -0.78), vec2(0.18, -0.4)));
+    float owl = fa_smin(fa_smin(body, head, 0.18), tufts, 0.06);
+    vec3 bc = fa_shade(plum, q - vec2(0.0, -0.05), vec2(0.62, 0.92));
+    // Little feather scallops on the body.
+    vec2 sc = vec2(q.x * 7.0, q.y * 6.0 - 0.5 * step(0.5, fract(q.x * 3.5)));
+    float scal = smoothstep(0.35, 0.5, length(fract(sc) - vec2(0.5, 0.2)));
+    bc *= 0.9 + 0.1 * scal;
+    fa_over(col, a, bc, fa_fill(owl));
+    fa_over(col, a, dark * 0.3, fa_line(owl));
+    // Belly with chevrons.
+    float belly = fa_ell(q - vec2(0.0, 0.32), vec2(0.38, 0.42));
+    vec3 blc = fa_shade(cream, q - vec2(0.0, 0.32), vec2(0.38, 0.42));
+    float chev = smoothstep(0.06, 0.0, abs(fract(q.y * 5.0 + abs(q.x) * 2.0) - 0.5) - 0.42);
+    blc = mix(blc, plum * 0.8, chev * 0.6 * step(q.y, 0.65));
+    fa_over(col, a, blc, fa_fill(belly));
+    // Face discs, eyes, beak.
+    for (int k = 0; k < 2; k++) {
+        float sd = k == 0 ? -1.0 : 1.0;
+        vec2 ec = vec2(sd * 0.24, -0.02);
+        vec2 eq = hq - ec;
+        float disc = length(eq) - 0.25;
+        fa_over(col, a, fa_shade(vec3(0.66, 0.56, 0.8), eq, vec2(0.25)), fa_fill(disc));
+        float white = length(eq) - 0.17;
+        if (sleeping > 0.5 || u_blink > 0.5) {
+            float cy = 0.0 - eq.x * eq.x * 3.0;
+            fa_over(col, a, dark * 0.6, smoothstep(0.03, 0.015, abs(eq.y - cy)) * step(abs(eq.x), 0.15));
+        } else if (u_mood > 1.5 && u_mood < 2.5) {
+            float cy = 0.02 - (0.1 - abs(eq.x) * 0.8);
+            fa_over(col, a, dark * 0.6, smoothstep(0.03, 0.015, abs(eq.y - cy)) * step(abs(eq.x), 0.13));
+        } else {
+            fa_over(col, a, vec3(0.98), fa_fill(white));
+            vec2 lk = u_look * vec2(0.06, 0.05);
+            float iris = length(eq - lk) - 0.11;
+            vec3 ic = mix(u_glow, vec3(1.0, 0.85, 0.3), 0.35);
+            fa_over(col, a, ic * (0.75 + 0.35 * smoothstep(0.11, 0.0, length(eq - lk))), fa_fill(iris));
+            fa_over(col, a, vec3(0.05, 0.02, 0.1), fa_fill(length(eq - lk) - 0.06));
+            fa_over(col, a, vec3(1.0), fa_fill(length(eq - lk - vec2(-0.035, -0.04)) - 0.025));
+        }
+    }
+    float beak = fa_tri(hq, vec2(-0.07, 0.08), vec2(0.07, 0.08), vec2(0.0, 0.24));
+    fa_over(col, a, fa_shade(gold, hq - vec2(0.0, 0.14), vec2(0.08, 0.1)), fa_fill(beak));
+
+    cogl_color_out = vec4(col * a, a) * u_alpha;
+`,
+};
+
+const DRAGON = {
+    decl: CREATURE_COMMON,
+    code: `
+    vec2 p = (cogl_tex_coord_in[0].xy - 0.5) * 2.0;
+    p.x *= u_facing;                 // drawn facing right, mirrored to face left
+    float t = u_time;
+    float sleeping = step(3.5, u_mood);
+    vec2 q = p / 0.6;
+    q.y += sin(t * 2.2) * 0.025;
+    vec3 col = vec3(0.0);
+    float a = 0.0;
+
+    float aura = exp(-length(p) * 2.5) * (0.3 + 0.25 * u_pulse);
+    fa_over(col, a, u_glow, aura * 0.55);
+
+    vec3 scale = vec3(0.22, 0.66, 0.52);
+    vec3 dark = vec3(0.12, 0.38, 0.32);
+    vec3 belly = vec3(0.98, 0.84, 0.52);
+    vec3 skin = vec3(0.5, 0.88, 0.76);
+    vec3 horn = vec3(0.96, 0.92, 0.82);
+
+    float flap = (sleeping > 0.5 ? 0.0 : sin(t * (5.0 + 9.0 * u_flap)) * 0.5) - 0.15;
+    vec2 sh = vec2(-0.08, -0.12);    // shoulder
+
+    // Far wing (behind, darker).
+    {
+        vec2 wq = fa_rot(q - sh, -0.5 + flap * 0.8);
+        float w = fa_tri(wq, vec2(0.0), vec2(-0.25, -0.95), vec2(-0.95, -0.45));
+        w = min(w, fa_tri(wq, vec2(0.0), vec2(-0.95, -0.45), vec2(-0.75, 0.0)));
+        fa_over(col, a, dark * 0.85, fa_fill(w));
+    }
+    // Tail with a spade.
+    float sway = sin(t * 2.0) * 0.08;
+    float tail = fa_seg(q, vec2(-0.35, 0.3), vec2(-0.7, 0.32 + sway), 0.11);
+    tail = min(tail, fa_seg(q, vec2(-0.7, 0.32 + sway), vec2(-0.95, 0.05 + sway * 1.5), 0.07));
+    float spade = fa_tri(q, vec2(-0.95, -0.12 + sway * 1.5), vec2(-1.1, 0.08 + sway * 1.5), vec2(-0.82, 0.12 + sway * 1.5));
+    // Body, neck and head as one soft shape.
+    float body = fa_ell(q - vec2(-0.05, 0.22), vec2(0.5, 0.36));
+    float neck = fa_seg(q, vec2(0.22, 0.05), vec2(0.42, -0.28), 0.16);
+    float headR = 0.27;
+    vec2 hc = vec2(0.5, -0.42);
+    float head = length(q - hc) - headR;
+    float snout = fa_ell(q - vec2(0.8, -0.36), vec2(0.22, 0.13));
+    float jawOpen = u_breath * 0.35;
+    float jaw = fa_ell(fa_rot(q - vec2(0.62, -0.26), jawOpen) - vec2(0.18, 0.02), vec2(0.2, 0.07));
+    float dragon = fa_smin(body, neck, 0.12);
+    dragon = fa_smin(dragon, head, 0.1);
+    dragon = fa_smin(dragon, snout, 0.08);
+    dragon = min(dragon, jaw);
+    dragon = fa_smin(dragon, tail, 0.08);
+    dragon = min(dragon, spade);
+    // Legs.
+    float legs = min(fa_ell(q - vec2(-0.25, 0.58), vec2(0.1, 0.09)), fa_ell(q - vec2(0.18, 0.58), vec2(0.1, 0.09)));
+    dragon = fa_smin(dragon, legs, 0.06);
+    // Back spikes: little triangles along the top of the body and neck.
+    float spikes = 1e3;
+    for (int k = 0; k < 4; k++) {
+        float fk = float(k);
+        vec2 b0 = vec2(-0.42 + fk * 0.17, -0.07 - fk * 0.035);
+        spikes = min(spikes, fa_tri(q, b0 + vec2(-0.06, 0.04), b0 + vec2(0.06, 0.03), b0 + vec2(-0.02, -0.11)));
+    }
+    float spike = fa_fill(spikes);
+    vec3 bc = fa_shade(scale, q - vec2(0.05, 0.0), vec2(0.75, 0.6));
+    // Scale texture.
+    vec2 sg = vec2(q.x * 12.0, q.y * 10.0 + 0.5 * step(0.5, fract(q.x * 6.0)));
+    bc *= 0.88 + 0.12 * smoothstep(0.3, 0.45, length(fract(sg) - 0.5));
+    fa_over(col, a, bc, fa_fill(dragon));
+    fa_over(col, a, dark * 0.35, fa_line(dragon));
+    fa_over(col, a, fa_shade(dark * 1.3, q - vec2(-0.2, -0.15), vec2(0.4, 0.2)), spike);
+    // Belly plates.
+    float bel = fa_ell(q - vec2(0.02, 0.32), vec2(0.34, 0.2));
+    vec3 blc = fa_shade(belly, q - vec2(0.02, 0.32), vec2(0.34, 0.2));
+    blc *= 0.85 + 0.15 * step(0.18, fract(q.x * 5.0));
+    fa_over(col, a, blc, fa_fill(bel));
+    // Horns.
+    float horns = min(fa_seg(q, hc + vec2(-0.1, -0.2), hc + vec2(-0.32, -0.42), 0.04),
+                      fa_seg(q, hc + vec2(0.03, -0.24), hc + vec2(-0.12, -0.5), 0.035));
+    fa_over(col, a, fa_shade(horn, q - hc, vec2(0.5)), fa_fill(horns));
+    // Eye: white, glowing iris, slit pupil.
+    vec2 ec = hc + vec2(0.08, -0.05);
+    vec2 eq = q - ec;
+    if (sleeping > 0.5 || u_blink > 0.5) {
+        fa_over(col, a, dark * 0.5, smoothstep(0.03, 0.015, abs(eq.y + eq.x * eq.x * 3.0)) * step(abs(eq.x), 0.08));
+    } else {
+        float happy = step(1.5, u_mood) * step(u_mood, 2.5);
+        if (happy > 0.5) {
+            fa_over(col, a, dark * 0.5, smoothstep(0.03, 0.015, abs(eq.y + 0.03 - abs(eq.x) * 0.7)) * step(abs(eq.x), 0.08));
+        } else {
+            fa_over(col, a, vec3(0.98), fa_fill(length(eq) - 0.085));
+            vec2 lk = vec2(u_look.x * u_facing, u_look.y) * 0.03;
+            fa_over(col, a, mix(u_glow, vec3(1.0, 0.8, 0.2), 0.5), fa_fill(length(eq - lk) - 0.06));
+            fa_over(col, a, vec3(0.05), fa_fill(fa_ell(eq - lk, vec2(0.016, 0.05))));
+            fa_over(col, a, vec3(1.0), fa_fill(length(eq - lk - vec2(-0.02, -0.025)) - 0.015));
+        }
+    }
+    // Nostril and a little smile.
+    fa_over(col, a, dark, fa_fill(length(q - vec2(0.95, -0.4)) - 0.02));
+    // Near wing (in front, translucent membrane with bones).
+    {
+        vec2 wq = fa_rot(q - sh, -0.35 + flap);
+        float w = fa_tri(wq, vec2(0.0), vec2(-0.2, -1.0), vec2(-0.95, -0.55));
+        w = min(w, fa_tri(wq, vec2(0.0), vec2(-0.95, -0.55), vec2(-0.8, -0.05)));
+        vec3 wc = mix(skin, u_glow, 0.15) * (0.85 + 0.25 * (-wq.y));
+        fa_over(col, a, wc, fa_fill(w) * 0.92);
+        float bones = min(fa_seg(wq, vec2(0.0), vec2(-0.2, -1.0), 0.018),
+                          min(fa_seg(wq, vec2(0.0), vec2(-0.95, -0.55), 0.015), fa_seg(wq, vec2(0.0), vec2(-0.8, -0.05), 0.013)));
+        fa_over(col, a, dark, fa_fill(bones) * fa_fill(w - 0.03));
+        fa_over(col, a, dark * 0.4, fa_line(w));
+    }
+    cogl_color_out = vec4(col * a, a) * u_alpha;
+`,
+};
+
+// --- Dragon fire breath ---------------------------------------------------------------
+const BREATH = {
+    decl: 'uniform float u_time; uniform float u_power;',
+    code: `
+    vec2 uv = cogl_tex_coord_in[0].xy;
+    float x = uv.x;                                  // 0 at the mouth, 1 at the far end
+    float y = (uv.y - 0.5) * 2.0;
+    float spread = 0.12 + x * 0.85;
+    float n = sc_fbm(vec2(x * 5.0 - u_time * 7.0, y * 2.5));
+    float cone = smoothstep(spread, spread * 0.3, abs(y + (n - 0.5) * 0.4 * x));
+    float reach = smoothstep(u_power * 1.05, u_power * 0.7, x);
+    float heat = cone * reach * (0.55 + 0.7 * n) * (1.0 - x * 0.55);
+    vec3 col = sc_fire(clamp(heat * 1.3, 0.0, 1.0));
+    float a = clamp(heat * 1.6, 0.0, 1.0);
+    cogl_color_out = vec4(col * a, a);
+`,
+};
+
+const SHADERS = {owl: OWL, dragon: DRAGON, breath: BREATH, volring: VOLRING, trail: TRAIL, sigil: SIGIL, fireball: FIREBALL, burn: BURN, night: NIGHT, frost: FROST, bolt: BOLT, aurora: AURORA, spirit: SPIRIT};
 
 function fullSource(src) {
     // Clamp so nothing is brighter than white, keep it valid premultiplied
