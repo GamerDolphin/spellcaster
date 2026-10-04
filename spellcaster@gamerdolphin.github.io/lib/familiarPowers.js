@@ -4,7 +4,8 @@
 //   🦉 Owl     – Messenger: announces new notifications and hoots the hour.
 //   🐉 Dragon  – Battery Guardian: warns (with fire!) at 20 / 10 / 5 % and
 //                cheers when you plug in. Also breathes fire with Fireball.
-//   ✨ Spirit  – CPU Watcher: glows with CPU load and warns if it stays maxed.
+//   ✨ Spirit  – System Watcher: glows with RAM (or CPU) use and warns if it
+//                stays nearly full.
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -148,7 +149,9 @@ export class FamiliarPowers {
         const now = GLib.get_monotonic_time() / 1e6;
         if (this._hotFor >= CPU_HOT_SECONDS && now - this._lastHotWarning > CPU_COOLDOWN_SECONDS) {
             this._lastHotWarning = now;
-            this._familiar.say(`🔥  CPU at ${Math.round(this._familiar.cpu * 100)}% for a while!`, 5000);
+            const ram = this._settings.get_string('familiar-glow-source') !== 'cpu';
+            const pct = Math.round(this._familiar.cpu * 100);
+            this._familiar.say(ram ? `🧠  RAM is ${pct}% full!` : `🔥  CPU at ${pct}% for a while!`, 5000);
         }
     }
 

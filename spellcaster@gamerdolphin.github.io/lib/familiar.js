@@ -15,7 +15,7 @@ import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {CpuWatch} from './systemWatch.js';
+import {LoadWatch} from './systemWatch.js';
 import {cpuGlow, draw} from './familiarArt.js';
 import {runShader, shaderActor} from './shaders.js';
 import {Palette, destroyer, monitorAt, rand} from './fx.js';
@@ -55,13 +55,17 @@ export class Familiar {
         this._hiddenFullscreen = false;
         this._opacity = 1;
 
-        this._cpuWatch = new CpuWatch(load => (this._cpu = load));
+        this._cpuWatch = new LoadWatch(() => this._settings.get_string('familiar-glow-source'), load => (this._cpu = load));
 
         this._settingsIds = [
             settings.connect('changed::familiar-visible', () => this._syncVisible()),
             settings.connect('changed::familiar-size', () => this._rebuild()),
             settings.connect('changed::familiar-type', () => this._rebuild()),
             settings.connect('changed::familiar-react-cpu', () => this._syncCpu()),
+            settings.connect('changed::familiar-glow-source', () => {
+                this._cpuWatch.stop();
+                this._syncCpu();
+            }),
             settings.connect('changed::familiar-hide-fullscreen', () => this._syncFullscreen()),
             settings.connect('changed::familiar-mode', () => (this._waypoint = null)),
         ];
@@ -710,7 +714,7 @@ export class Familiar {
         this._bubble?.destroy();
     }
 
-    /** Current CPU load 0..1 (only updated while CPU glow is on). */
+    /** Current RAM or CPU load 0..1 (whichever the glow follows). */
     get cpu() {
         return this._cpu;
     }

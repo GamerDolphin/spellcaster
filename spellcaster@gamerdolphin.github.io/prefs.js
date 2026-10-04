@@ -510,7 +510,11 @@ function familiarPage(b) {
         description: 'Your familiar never blocks clicks, makes no sound, and drifts away if your cursor gets close.',
     });
     calm.add(b.switchRow('Hide in fullscreen', 'Disappears during games and fullscreen videos', 'familiar-hide-fullscreen'));
-    calm.add(b.switchRow('Glow with CPU load', 'Blue when idle → purple when busy → orange when maxed out', 'familiar-react-cpu'));
+    calm.add(b.switchRow('Glow with system load', 'Blue when calm → purple when busy → orange when nearly full', 'familiar-react-cpu'));
+    const sourceRow = comboRow('Glow shows', 'The Spirit also warns you when this stays nearly full', ['RAM (memory) use', 'CPU use']);
+    b.combo(sourceRow, 'familiar-glow-source', ['ram', 'cpu']);
+    s.bind('familiar-react-cpu', sourceRow, 'sensitive', Gio.SettingsBindFlags.GET);
+    calm.add(sourceRow);
     calm.add(b.switchRow('Nap when the mouse is still', 'Floats up under the top bar and dozes off. Move the mouse to wake it', 'familiar-nap'));
     const nap = b.spinRow('Nap after (seconds)', null, 'familiar-nap-seconds', 5, 3600, 5);
     s.bind('familiar-nap', nap, 'sensitive', Gio.SettingsBindFlags.GET);

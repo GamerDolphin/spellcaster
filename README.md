@@ -52,7 +52,7 @@ A familiar keeps you company, and each one has a job:
 
 | Familiar | Job |
 |---|---|
-| ✨ **Spirit** (default) | **CPU Watcher**: a flickering flame creature that glows blue → purple → orange with your CPU, and warns you if it stays maxed out |
+| ✨ **Spirit** (default) | **RAM Watcher**: a flickering flame creature that glows blue → purple → orange as your memory fills up, and warns you if it stays nearly full (can follow CPU instead) |
 | 🦉 **Owl** | **Messenger**: announces new notifications in a speech bubble and hoots the hour |
 | 🐉 **Tiny Dragon** | **Battery Guardian**: breathes fire and warns you at 20 %, 10 % and 5 %, cheers when you plug in, and breathes fire along with your Fireball |
 | 💫 **Wisp** | A simple glowing companion |

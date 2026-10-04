@@ -111,7 +111,12 @@
     </key>
     <key name="familiar-react-cpu" type="b">
       <default>true</default>
-      <summary>Familiar glows with CPU load</summary>
+      <summary>Familiar glows with system load</summary>
+    </key>
+    <key name="familiar-glow-source" type="s">
+      <choices><choice value="ram"/><choice value="cpu"/></choices>
+      <default>'ram'</default>
+      <summary>What the familiar's glow shows: RAM or CPU use</summary>
     </key>
     <key name="familiar-nap" type="b">
       <default>true</default>
