@@ -17,12 +17,13 @@ Every rune is **one quick stroke**. You never lift the mouse, and there are no s
 | ⭕ Circle | One loop | **Portal** | Every window spirals into a portal. Cast it again and they fly back out |
 | ✔️ V | Down, then up | **Freeze** | Frost spreads over the screen, then it locks |
 | ⛰️ Λ | Up, then down | **Summon** | Your familiar appears, or goes away if it's already out |
-| 🥣 U | A smooth cup | **Sound Control** | Your mouse becomes a volume knob: left click quieter, right click louder, middle click mute, scroll for fine steps, Space when done |
+| 🥣 U | A smooth cup | **Sound Control** | Your scroll wheel becomes a volume knob: scroll to change the volume, middle click to mute, click (or Space) when done |
+| 🔺 Triangle | Three sides, back to the start | **Farewell** | Night falls and you're logged out (asks first, no extra GNOME dialog) |
 | ⬇️ Line down | One straight stroke | **Slumber** | A curtain falls and the PC **suspends**. Click during the curtain to cancel |
 
 Esc or a right-click cancels casting. A stroke that isn't a rune just **fizzles**.
 
-🛡️ **Freeze and Slumber ask first.** A small popup with **Cancel** / **Freeze** (or **Sleep**) appears, and it cancels itself after 10 seconds if you do nothing, so a mis-drawn rune never locks or sleeps your PC. You can turn this off or change the timer in the Spellbook.
+🛡️ **Freeze, Slumber and Farewell ask first.** A small popup with **Cancel** / **Freeze** (or **Sleep**) appears, and it cancels itself after 10 seconds if you do nothing, so a mis-drawn rune never locks or sleeps your PC. You can turn this off or change the timer in the Spellbook.
 
 ![Sound Control](docs/screenshots/sound.png)
 

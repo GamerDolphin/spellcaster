@@ -42,6 +42,7 @@
     <key name="rune-caret" type="s"><default>'summon'</default><summary>Spell for the Λ rune</summary></key>
     <key name="rune-u" type="s"><default>'sound'</default><summary>Spell for the U rune</summary></key>
     <key name="rune-line" type="s"><default>'slumber'</default><summary>Spell for the line-down rune</summary></key>
+    <key name="rune-triangle" type="s"><default>'logout'</default><summary>Spell for the triangle rune</summary></key>
     <key name="rune-commands" type="a{ss}">
       <default>{}</default>
       <summary>Custom command for each rune bound to "Custom Command"</summary>
@@ -63,7 +64,7 @@
     </key>
     <key name="confirm-big-spells" type="b">
       <default>true</default>
-      <summary>Ask before Freeze and Slumber</summary>
+      <summary>Ask before Freeze, Slumber and Farewell</summary>
     </key>
     <key name="confirm-seconds" type="i">
       <range min="3" max="60"/>

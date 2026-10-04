@@ -333,13 +333,14 @@ async function run() {
         pointer.notify_button(now(), btn, Clutter.ButtonState.PRESSED);
         pointer.notify_button(now(), btn, Clutter.ButtonState.RELEASED);
     };
-    click(Clutter.BUTTON_PRIMARY);
+    const scroll = dir => pointer.notify_discrete_scroll(now(), dir, Clutter.ScrollSource.WHEEL);
+    scroll(Clutter.ScrollDirection.DOWN);
     await sleep(150);
-    check('Left click lowers the volume', fake.volume === 45000, `volume=${fake.volume}`);
-    click(Clutter.BUTTON_SECONDARY);
-    click(Clutter.BUTTON_SECONDARY);
+    check('Scrolling down lowers the volume', fake.volume === 47000, `volume=${fake.volume}`);
+    scroll(Clutter.ScrollDirection.UP);
+    scroll(Clutter.ScrollDirection.UP);
     await sleep(150);
-    check('Right click raises the volume', fake.volume === 55000, `volume=${fake.volume}`);
+    check('Scrolling up raises the volume', fake.volume === 53000, `volume=${fake.volume}`);
     await sleep(250);
     await shot('12s-sound-control');
     click(Clutter.BUTTON_MIDDLE);
@@ -349,10 +350,34 @@ async function run() {
     click(Clutter.BUTTON_MIDDLE);
     await sleep(150);
     check('Middle click again unmutes', fake.is_muted === false);
+    click(Clutter.BUTTON_PRIMARY);
+    await sleep(400);
+    check('Left click leaves Sound Control', !sc()._sound.active);
+    await cast(runes, 'u', cx, cy, 300);
+    await sleep(700);
+    click(Clutter.BUTTON_SECONDARY);
+    await sleep(400);
+    check('Right click leaves Sound Control too', !sc()._sound.active);
+    await cast(runes, 'u', cx, cy, 300);
+    await sleep(700);
     key(Clutter.KEY_space, true);
     key(Clutter.KEY_space, false);
     await sleep(400);
     check('Space leaves Sound Control', !sc()._sound.active);
+
+    // Farewell (triangle) asks first, then "logs out" (pretend).
+    let logouts = 0;
+    sc()._logOut = () => logouts++;
+    await cast(runes, 'triangle', cx, cy, 300);
+    await sleep(1300);
+    check('Triangle asks before logging out', sc()._confirmDialog?.open && logouts === 0);
+    await shot('12t-confirm-logout');
+    sc()._confirmDialog.confirm();
+    await sleep(900);
+    await shot('12u-farewell');
+    await waitFor(() => logouts > 0, 3000);
+    check('Confirming Farewell logs out', logouts === 1, `logouts=${logouts}`);
+    await sleep(4800);
 
     // Enchant (bound to U just for this test).
     settings.set_string('rune-u', 'enchant');

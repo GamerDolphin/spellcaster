@@ -10,7 +10,7 @@
 // and scoring each rune with soft thresholds. Coordinates are screen
 // coordinates, so y grows downward.
 
-export const RUNES = ['spiral', 'lightning', 'circle', 'v', 'caret', 'u', 'line'];
+export const RUNES = ['spiral', 'lightning', 'circle', 'v', 'caret', 'u', 'line', 'triangle'];
 
 const N_POINTS = 64;
 const DEG = 180 / Math.PI;
@@ -277,7 +277,18 @@ export function score(m) {
     const notCircle = m.turning > 620 ? 1 : ramp(m.radVar, 0.10, 0.2);
     // Loops never zig-zag back and forth.
     const zigzag = m.alternating >= 2 ? 0 : 1;
-    s.circle *= zigzag;
+    // Triangle: a closed loop like a circle, but its turning is bunched
+    // into sharp corners instead of spread evenly.
+    const pointy = ramp(m.sharp, 80, 105);
+    // (The corner where you start and finish isn't counted, so a triangle
+    // shows about 240° of turning and two sharp corners.)
+    s.triangle = ramp(m.turning, 185, 215) *
+        (1 - ramp(m.turning, 330, 390)) *
+        ramp(m.cornerCount, 1.5, 2) *
+        loopy *
+        (1 - ramp(m.gap, 0.3, 0.5)) *
+        pointy * zigzag;
+    s.circle *= zigzag * (1 - pointy);
     s.spiral = Math.max(manyTurns * notCircle, oneTurnSpiral) * loopy * zigzag;
 
     // Two or more back-and-forth corners is the giveaway. Tall skinny bolts
@@ -301,6 +312,7 @@ export function score(m) {
         ramp(m.consistency, 0.6, 0.8) *
         ramp(m.bottomSpan, 0.36, 0.52) *
         ramp(m.uDepth, 0.35, 0.65) *
+        ramp(m.gap, 0.12, 0.25) *        // a U is open at the top
         (m.lowMid ? 1 : 0);
 
     return s;

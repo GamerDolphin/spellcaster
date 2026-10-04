@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Sound Control mode: after the rune, your mouse becomes a volume knob.
-//   left click   quieter
-//   right click  louder
-//   middle click mute / unmute
-//   scroll       fine adjust
-//   Space / Esc  done
+// Sound Control mode: after the rune, your mouse wheel becomes a volume knob.
+//   scroll           louder / quieter
+//   middle click     mute / unmute
+//   left/right click done (so are Space and Esc)
 //
 // A glowing ring (GPU shader) follows the cursor and shows the volume.
 
@@ -21,8 +19,7 @@ import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {destroyer, rand} from './fx.js';
 import {shaderActor} from './shaders.js';
 
-const STEP = 0.05;
-const FINE_STEP = 0.02;
+const STEP = 0.03;
 const RING = 170;
 const IDLE_EXIT_MS = 60000;
 const NOTES = ['♪', '♫', '♬', '♩'];
@@ -139,7 +136,7 @@ export class SoundMode {
         // How-to pill at the bottom of the screen.
         const m = Main.layoutManager.primaryMonitor;
         this._hint = this._fx.add(new St.Label({
-            text: '🎵  Left: quieter   ·   Right: louder   ·   Middle: mute   ·   Scroll: fine   ·   Space: done',
+            text: '🎵  Scroll: volume   ·   Middle click: mute   ·   Click or Space: done',
             style_class: 'spellcaster-countdown',
             opacity: 0,
             reactive: false,
@@ -223,26 +220,31 @@ export class SoundMode {
         if (type === Clutter.EventType.BUTTON_PRESS) {
             this._resetIdle();
             const b = event.get_button();
-            if (b === Clutter.BUTTON_PRIMARY)
-                this._bump(-STEP);
-            else if (b === Clutter.BUTTON_SECONDARY)
-                this._bump(STEP);
-            else if (b === Clutter.BUTTON_MIDDLE && this._toggleMute()) {
-                this._pop = 1;
-                this._notes(!this._muted());
-                this._showOsd();
+            if (b === Clutter.BUTTON_MIDDLE) {
+                if (this._toggleMute()) {
+                    this._pop = 1;
+                    this._notes(!this._muted());
+                    this._showOsd();
+                }
+            } else {
+                // Left or right click: done.
+                this.exit();
             }
         } else if (type === Clutter.EventType.SCROLL) {
             this._resetIdle();
+            // GNOME sends each scroll twice (a real one and an emulated copy).
+            if (event.is_pointer_emulated())
+                return Clutter.EVENT_STOP;
             const dir = event.get_scroll_direction();
             if (dir === Clutter.ScrollDirection.UP)
-                this._bump(FINE_STEP);
+                this._bump(STEP);
             else if (dir === Clutter.ScrollDirection.DOWN)
-                this._bump(-FINE_STEP);
+                this._bump(-STEP);
             else if (dir === Clutter.ScrollDirection.SMOOTH) {
+                // Touchpads scroll in small smooth steps.
                 const [, dy] = event.get_scroll_delta();
                 if (Math.abs(dy) > 0.01)
-                    this._bump(-dy * FINE_STEP);
+                    this._bump(-dy * STEP);
             }
         } else if (type === Clutter.EventType.KEY_PRESS) {
             const k = event.get_key_symbol();

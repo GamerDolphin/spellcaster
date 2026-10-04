@@ -110,6 +110,20 @@ export const generators = {
             out.push({x: wid, y: -side * i / 10});
         return rand() < 0.5 ? out.reverse() : out;
     },
+    triangle() {
+        // Any triangle shape, starting at any corner, either direction.
+        const pts = [[0.5, 0], [between(0.85, 1.1), between(0.8, 1)], [between(-0.1, 0.15), between(0.8, 1)]]
+            .map(([x, y]) => [x + between(-0.05, 0.05), y + between(-0.05, 0.05)]);
+        const start = Math.floor(rand() * 3);
+        const order = [0, 1, 2].map(i => pts[(start + i) % 3]);
+        if (rand() < 0.5)
+            order.reverse();
+        // Close it, sometimes a bit short, sometimes overshooting.
+        const first = order[0], last = order[2];
+        const k = between(0.88, 1.08);
+        const close = [last[0] + (first[0] - last[0]) * k, last[1] + (first[1] - last[1]) * k];
+        return roundCorners(polyline([...order, close], 20), rand() < 0.3 ? 4 : 2);
+    },
     line() {
         const tilt = between(-0.3, 0.3);
         return polyline([[0, 0], [tilt, 1]], 40);

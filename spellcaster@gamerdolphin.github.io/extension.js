@@ -24,12 +24,14 @@ import * as Freeze from './spells/freeze.js';
 import * as Summon from './spells/summon.js';
 import * as Enchant from './spells/enchant.js';
 import * as Slumber from './spells/slumber.js';
+import * as Logout from './spells/logout.js';
 import * as Extras from './spells/extras.js';
 
 // Spells big enough to ask "are you sure?" first.
 const CONFIRM = {
     freeze: {title: '❄️ Freeze?', body: 'This will lock your screen.', confirmLabel: 'Freeze'},
     slumber: {title: '🌙 Slumber?', body: 'Your PC will go to sleep. Nothing gets closed.', confirmLabel: 'Sleep'},
+    logout: {title: '👋 Log out?', body: 'You\u2019ll be logged out. Apps with unsaved work will ask you to save.', confirmLabel: 'Log out'},
 };
 
 const SPELLS = {
@@ -45,6 +47,7 @@ const SPELLS = {
         ctx.sound.toggle(ctx.colors);
     },
     'slumber': Slumber.cast,
+    'logout': Logout.cast,
     'screenshot': Extras.screenshot,
     'overview': Extras.overview,
     'workspace-left': Extras.workspaceLeft,
@@ -139,6 +142,7 @@ export default class SpellcasterExtension extends Extension {
             fx: this._fx,
             familiar: this._familiar,
             sound: this._sound,
+            logOut: this._logOut, // only set by the test driver
             onSlumber: () => {
                 wakeSparklePending = this._settings.get_boolean('slumber-wake-sparkle');
             },

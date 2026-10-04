@@ -252,9 +252,9 @@ function spellsPage(window, b) {
     // Slumber.
     const safety = new Adw.PreferencesGroup({
         title: '🛡️ Safety',
-        description: 'Freeze locks your screen and Slumber puts the PC to sleep, so they ask first.',
+        description: 'Freeze locks your screen, Slumber puts the PC to sleep and Farewell logs you out, so they ask first.',
     });
-    safety.add(b.switchRow('Ask before Freeze and Slumber', 'A popup with Cancel and Confirm. It cancels itself if you do nothing', 'confirm-big-spells'));
+    safety.add(b.switchRow('Ask before Freeze, Slumber and Farewell', 'A popup with Cancel and Confirm. It cancels itself if you do nothing', 'confirm-big-spells'));
     const secs = b.spinRow('Cancel automatically after (seconds)', null, 'confirm-seconds', 3, 60, 1);
     s.bind('confirm-big-spells', secs, 'sensitive', Gio.SettingsBindFlags.GET);
     safety.add(secs);

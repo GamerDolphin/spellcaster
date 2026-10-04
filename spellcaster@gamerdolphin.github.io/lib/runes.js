@@ -12,6 +12,7 @@ export const RUNE_INFO = [
     {id: 'caret', name: 'Λ', emoji: '⛰️', hint: 'Up, then back down. One sharp point at the top'},
     {id: 'u', name: 'U', emoji: '🥣', hint: 'A smooth cup shape with no sharp point'},
     {id: 'line', name: 'Line down', emoji: '⬇️', hint: 'One straight stroke from top to bottom'},
+    {id: 'triangle', name: 'Triangle', emoji: '🔺', hint: 'Three straight sides, ending where you started'},
 ];
 
 /** Every action a rune can be bound to. */
@@ -21,9 +22,10 @@ export const SPELL_INFO = [
     {id: 'portal', name: 'Portal', desc: 'Pull every window into a portal (show desktop). Cast again to bring them back'},
     {id: 'freeze', name: 'Freeze', desc: 'Frost over and lock the screen'},
     {id: 'summon', name: 'Summon', desc: 'Summon or dismiss your familiar'},
-    {id: 'sound', name: 'Sound Control', desc: 'Your mouse controls the volume (left quieter, right louder, middle mute) until you press Space'},
+    {id: 'sound', name: 'Sound Control', desc: 'Scroll to change the volume, middle click to mute, click to finish'},
     {id: 'enchant', name: 'Enchant', desc: 'Play or pause music (Quick Lofi first)'},
     {id: 'slumber', name: 'Slumber', desc: 'Lower the curtain and suspend the PC'},
+    {id: 'logout', name: 'Farewell', desc: 'Log out (asks first)'},
     {id: 'screenshot', name: 'Snapshot', desc: 'Open the screenshot tool'},
     {id: 'overview', name: 'Scry', desc: 'Open the Activities overview'},
     {id: 'workspace-left', name: 'Step Left', desc: 'Move to the workspace on the left'},
@@ -82,6 +84,9 @@ export function runeGuide(id) {
         break;
     case 'line':
         pts.push({x: 0.5, y: 0.08}, {x: 0.5, y: 0.92});
+        break;
+    case 'triangle':
+        pts.push({x: 0.5, y: 0.1}, {x: 0.9, y: 0.85}, {x: 0.1, y: 0.85}, {x: 0.47, y: 0.16});
         break;
     }
     return pts;
