@@ -115,12 +115,12 @@
     </key>
     <key name="familiar-nap" type="b">
       <default>true</default>
-      <summary>Familiar naps when you are idle</summary>
+      <summary>Familiar naps when the mouse is still</summary>
     </key>
-    <key name="familiar-nap-minutes" type="i">
-      <range min="1" max="60"/>
-      <default>3</default>
-      <summary>Idle minutes before the familiar naps</summary>
+    <key name="familiar-nap-seconds" type="i">
+      <range min="5" max="3600"/>
+      <default>30</default>
+      <summary>Seconds without mouse movement before the familiar naps</summary>
     </key>
   </schema>
 </schemalist>

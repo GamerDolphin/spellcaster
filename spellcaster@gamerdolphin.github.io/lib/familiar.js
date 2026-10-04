@@ -30,8 +30,6 @@ export class Familiar {
         this._fx = fx;
         this._actor = null;
         this._tickId = 0;
-        this._sleepWatchId = 0;
-        this._activeWatchId = 0;
         this._zzzId = 0;
         this._moodId = 0;
 
@@ -57,8 +55,6 @@ export class Familiar {
             settings.connect('changed::familiar-size', () => this._rebuild()),
             settings.connect('changed::familiar-type', () => this._rebuild()),
             settings.connect('changed::familiar-react-cpu', () => this._syncCpu()),
-            settings.connect('changed::familiar-nap', () => this._syncIdle()),
-            settings.connect('changed::familiar-nap-minutes', () => this._syncIdle()),
             settings.connect('changed::familiar-hide-fullscreen', () => this._syncFullscreen()),
             settings.connect('changed::familiar-mode', () => (this._waypoint = null)),
         ];
@@ -163,7 +159,8 @@ export class Familiar {
             this._fx.burst(this._pos.x, this._pos.y, {count: 30, colors: Palette.sparkle, speed: 90});
 
         this._syncCpu();
-        this._syncIdle();
+        this._stillFor = 0;
+        this._lastPointer = null;
         this._syncFullscreen();
         this._startTicking(FPS_AWAKE);
     }
@@ -195,7 +192,6 @@ export class Familiar {
     _teardownActor() {
         this._stopTicking();
         this._cpuWatch.stop();
-        this._clearIdleWatches();
         this._stopZzz();
         if (this._moodId) {
             GLib.source_remove(this._moodId);
@@ -243,6 +239,21 @@ export class Familiar {
         this._t += dt;
         const S = this._size;
         const [px, py] = global.get_pointer();
+
+        // Nap when the mouse has been still for a while; wake when it moves.
+        const lp = this._lastPointer;
+        const moved = !lp || Math.hypot(px - lp.x, py - lp.y) > 2;
+        this._lastPointer = {x: px, y: py};
+        if (moved) {
+            this._stillFor = 0;
+            if (this._mood === 'sleep' && !this._curled)
+                this.wake();
+        } else {
+            this._stillFor += dt;
+            if (this._mood !== 'sleep' && this._settings.get_boolean('familiar-nap') &&
+                this._stillFor >= this._settings.get_int('familiar-nap-seconds'))
+                this.sleep();
+        }
         const pos = this._pos;
         const dx = px - pos.x, dy = py - pos.y;
         const d = Math.hypot(dx, dy) || 1;
@@ -454,47 +465,22 @@ export class Familiar {
             this._cpuWatch.stop();
     }
 
-    _clearIdleWatches() {
-        const monitor = global.backend.get_core_idle_monitor();
-        if (this._sleepWatchId) {
-            monitor.remove_watch(this._sleepWatchId);
-            this._sleepWatchId = 0;
-        }
-        if (this._activeWatchId) {
-            monitor.remove_watch(this._activeWatchId);
-            this._activeWatchId = 0;
-        }
-    }
-
-    _syncIdle() {
-        this._clearIdleWatches();
-        if (!this._actor || !this._settings.get_boolean('familiar-nap'))
-            return;
-        const ms = this._settings.get_int('familiar-nap-minutes') * 60 * 1000;
-        const monitor = global.backend.get_core_idle_monitor();
-        this._sleepWatchId = monitor.add_idle_watch(ms, () => this.sleep());
-    }
-
     sleep() {
         if (!this._actor || this._mood === 'sleep')
             return;
         this._setMood('sleep');
         this._startTicking(FPS_ASLEEP);
         this._startZzz();
-        const monitor = global.backend.get_core_idle_monitor();
-        if (!this._activeWatchId) {
-            this._activeWatchId = monitor.add_user_active_watch(() => {
-                this._activeWatchId = 0;
-                this.wake();
-            });
-        }
     }
 
     wake() {
         if (!this._actor || this._mood !== 'sleep')
             return;
+        this._curled = false;
+        this._stillFor = 0;
         this._stopZzz();
         this._startTicking(FPS_AWAKE);
+        this._setMood('idle');
         this.flashMood('happy', 900);
         // Little stretch.
         this._actor.ease({
@@ -587,8 +573,15 @@ export class Familiar {
 
     /** Slumber: curl up right away. */
     curlUp() {
-        if (this._actor)
-            this.sleep();
+        if (!this._actor)
+            return;
+        this._curled = true;
+        this.sleep();
+        // Let the mouse wake it again after a bit (or after waking the PC).
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 4000, () => {
+            this._curled = false;
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     get position() {

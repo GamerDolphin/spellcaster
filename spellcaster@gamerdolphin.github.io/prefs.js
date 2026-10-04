@@ -511,8 +511,8 @@ function familiarPage(b) {
     });
     calm.add(b.switchRow('Hide in fullscreen', 'Disappears during games and fullscreen videos', 'familiar-hide-fullscreen'));
     calm.add(b.switchRow('Glow with CPU load', 'Blue when idle → purple when busy → orange when maxed out', 'familiar-react-cpu'));
-    calm.add(b.switchRow('Nap when idle', 'Floats up under the top bar and dozes off', 'familiar-nap'));
-    const nap = b.spinRow('Nap after (minutes)', null, 'familiar-nap-minutes', 1, 60, 1);
+    calm.add(b.switchRow('Nap when the mouse is still', 'Floats up under the top bar and dozes off. Move the mouse to wake it', 'familiar-nap'));
+    const nap = b.spinRow('Nap after (seconds)', null, 'familiar-nap-seconds', 5, 3600, 5);
     s.bind('familiar-nap', nap, 'sensitive', Gio.SettingsBindFlags.GET);
     calm.add(nap);
     page.add(calm);

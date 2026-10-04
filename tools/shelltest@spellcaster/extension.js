@@ -253,6 +253,21 @@ async function run() {
     await sleep(700);
     await shot('09b-familiar-spirit-moving');
     log(`FAMPOS ${Math.round(sc()._familiar.position.x)} ${Math.round(sc()._familiar.position.y)}`);
+    // Naps when the mouse is still, wakes when it moves.
+    settings.set_int('familiar-nap-seconds', 5);
+    await sleep(6500);
+    const napY = sc()._familiar.position.y;
+    check('Familiar falls asleep when the mouse is still', sc()._familiar._mood === 'sleep', `mood=${sc()._familiar._mood}`);
+    await sleep(3000);
+    check('Sleeping familiar floats up to the top', sc()._familiar.position.y < m.y + 200, `y=${Math.round(sc()._familiar.position.y)} was=${Math.round(napY)}`);
+    await shot('09s-familiar-asleep');
+    moveTo(cx - 350, cy + 150);
+    await sleep(300);
+    moveTo(cx - 380, cy + 170);
+    await sleep(600);
+    check('Moving the mouse wakes the familiar', sc()._familiar._mood !== 'sleep', `mood=${sc()._familiar._mood}`);
+    settings.set_int('familiar-nap-seconds', 30);
+
     // Shy: it fades right out when the cursor is on it, and comes back after.
     settings.set_string('familiar-mode', 'perch');
     await sleep(2500);
