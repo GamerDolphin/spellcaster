@@ -30,7 +30,7 @@ export function logOut() {
 
 export function cast(ctx) {
     const {fx, familiar} = ctx;
-    familiar.say?.('👋  Bye for now!', 2500);
+    familiar.say?.('Bye for now!', 2500);
     const shades = Main.layoutManager.monitors.map(m => {
         const {actor, shader} = shaderActor('night', {x: m.x, y: m.y, width: m.width, height: m.height});
         fx.add(actor);

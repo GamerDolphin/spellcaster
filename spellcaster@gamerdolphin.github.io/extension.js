@@ -29,9 +29,9 @@ import * as Extras from './spells/extras.js';
 
 // Spells big enough to ask "are you sure?" first.
 const CONFIRM = {
-    freeze: {title: '❄️ Freeze?', body: 'This will lock your screen.', confirmLabel: 'Freeze'},
-    slumber: {title: '🌙 Slumber?', body: 'Your PC will go to sleep. Nothing gets closed.', confirmLabel: 'Sleep'},
-    logout: {title: '👋 Log out?', body: 'You\u2019ll be logged out. Apps with unsaved work will ask you to save.', confirmLabel: 'Log out'},
+    freeze: {title: 'Freeze?', body: 'This will lock your screen.', confirmLabel: 'Freeze'},
+    slumber: {title: 'Slumber?', body: 'Your PC will go to sleep. Nothing gets closed.', confirmLabel: 'Sleep'},
+    logout: {title: 'Log out?', body: 'You\u2019ll be logged out. Apps with unsaved work will ask you to save.', confirmLabel: 'Log out'},
 };
 
 const SPELLS = {

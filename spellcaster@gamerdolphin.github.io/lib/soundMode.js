@@ -136,7 +136,7 @@ export class SoundMode {
         // How-to pill at the bottom of the screen.
         const m = Main.layoutManager.primaryMonitor;
         this._hint = this._fx.add(new St.Label({
-            text: '🎵  Scroll: volume   ·   Middle click: mute   ·   Click or Space: done',
+            text: 'Scroll: volume   ·   Middle click: mute   ·   Click or Space: done',
             style_class: 'spellcaster-countdown',
             opacity: 0,
             reactive: false,

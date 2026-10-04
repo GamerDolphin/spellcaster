@@ -30,7 +30,7 @@
       <summary>Use fewer particles and shorter animations</summary>
     </key>
     <key name="show-rune-name" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Show the spell name when a rune is cast</summary>
     </key>
 
