@@ -4,8 +4,9 @@
 
     <!-- Casting -->
     <key name="cast-shortcut" type="as">
-      <default><![CDATA[['<Super>z']]]></default>
-      <summary>Shortcut that starts casting</summary>
+      <!-- The Copilot key on newer laptops sends Shift+Super+F23. -->
+      <default><![CDATA[['<Super>z', '<Shift><Super>F23']]]></default>
+      <summary>Shortcuts that start casting</summary>
     </key>
     <key name="tolerance" type="d">
       <range min="0" max="1"/>
@@ -42,6 +43,7 @@
     <key name="rune-caret" type="s"><default>'summon'</default><summary>Spell for the Λ rune</summary></key>
     <key name="rune-u" type="s"><default>'sound'</default><summary>Spell for the U rune</summary></key>
     <key name="rune-line" type="s"><default>'slumber'</default><summary>Spell for the line-down rune</summary></key>
+    <key name="rune-up" type="s"><default>'spellbook'</default><summary>Spell for the line-up rune</summary></key>
     <key name="rune-triangle" type="s"><default>'logout'</default><summary>Spell for the triangle rune</summary></key>
     <key name="rune-commands" type="a{ss}">
       <default>{}</default>

@@ -2,7 +2,7 @@
 
 **Draw glowing runes with your mouse to cast spells on your GNOME desktop.**
 
-Press <kbd>Super</kbd> + <kbd>Z</kbd>, draw a rune, and let go. Your trail glows, the rune flares, and the spell goes off.
+Press <kbd>Super</kbd> + <kbd>Z</kbd> (or the Copilot key, if your keyboard has one), draw a rune, and let go. Your trail glows, the rune flares, and the spell goes off.
 
 ![A glowing spiral rune drawn over a window](docs/screenshots/rune-trail.png)
 
@@ -19,6 +19,7 @@ Every rune is **one quick stroke**. You never lift the mouse, and there are no s
 | ⛰️ Λ | Up, then down | **Summon** | Your familiar appears, or goes away if it's already out |
 | 🥣 U | A smooth cup | **Sound Control** | Your scroll wheel becomes a volume knob: scroll to change the volume, middle click to mute, click (or Space) when done |
 | 🔺 Triangle | Three sides, back to the start | **Farewell** | Night falls and you're logged out (asks first, no extra GNOME dialog) |
+| ⬆️ Line up | One straight stroke upward | **Spellbook** | Opens Spellcaster's settings |
 | ⬇️ Line down | One straight stroke | **Slumber** | A curtain falls and the PC **suspends**. Click during the curtain to cancel |
 
 Esc or a right-click cancels casting. A stroke that isn't a rune just **fizzles**.

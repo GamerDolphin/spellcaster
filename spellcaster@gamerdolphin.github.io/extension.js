@@ -48,6 +48,7 @@ const SPELLS = {
     },
     'slumber': Slumber.cast,
     'logout': Logout.cast,
+    'spellbook': ctx => ctx.openSpellbook(),
     'screenshot': Extras.screenshot,
     'overview': Extras.overview,
     'workspace-left': Extras.workspaceLeft,
@@ -143,6 +144,7 @@ export default class SpellcasterExtension extends Extension {
             familiar: this._familiar,
             sound: this._sound,
             logOut: this._logOut, // only set by the test driver
+            openSpellbook: () => this.openPreferences(),
             onSlumber: () => {
                 wakeSparklePending = this._settings.get_boolean('slumber-wake-sparkle');
             },

@@ -162,6 +162,19 @@ async function run() {
     await sleep(400);
     check('Esc cancels casting', !sc()._overlay.active);
 
+    // The Copilot key sends Shift+Super+F23.
+    key(Clutter.KEY_Shift_L, true);
+    key(Clutter.KEY_Super_L, true);
+    key(Clutter.KEY_F23, true);
+    key(Clutter.KEY_F23, false);
+    key(Clutter.KEY_Super_L, false);
+    key(Clutter.KEY_Shift_L, false);
+    await sleep(400);
+    check('Copilot key starts casting', sc()._overlay.active);
+    key(Clutter.KEY_Escape, true);
+    key(Clutter.KEY_Escape, false);
+    await sleep(400);
+
     // Windows to play with.
     spawnWindow('Window A');
     await sleep(600);
@@ -301,7 +314,13 @@ async function run() {
     await sleep(1200);
     await shot('11-familiar-dragon');
     log(`FAMPOS ${Math.round(sc()._familiar.position.x)} ${Math.round(sc()._familiar.position.y)}`);
-    // Dragon guards the battery.
+    // Dragon guards the battery. Stop listening to the real battery first,
+    // so plugging in the laptop mid-test can't change the result.
+    const pw = sc()._powers;
+    if (pw._battery && pw._batteryId) {
+        pw._battery.disconnect(pw._batteryId);
+        pw._batteryId = 0;
+    }
     sc()._powers.onBattery(60, 2);
     sc()._powers.onBattery(18, 2);
     await sleep(500);
@@ -453,11 +472,11 @@ async function run() {
     check('Re-enabling works', e2.state === 1 && sc()._familiar.visible, `state=${e2.state}`);
     settings.set_boolean('familiar-visible', false);
 
-    // Spellbook window.
-    Util.spawn(['gnome-extensions', 'prefs', UUID]);
+    // Spellbook window, opened with the line-up rune.
+    await cast(runes, 'up', cx, cy, 300);
     const prefsUp = await waitFor(() => global.get_window_actors().some(a => (a.get_meta_window().get_title() ?? '').includes('Spellcaster')), 15000);
     await sleep(2500);
-    check('Spellbook opens', prefsUp);
+    check('Line-up rune opens the Spellbook', prefsUp);
     await shot('17-spellbook');
 
     finish();

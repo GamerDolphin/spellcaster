@@ -136,7 +136,8 @@ function shortcutRow(window, settings, key) {
         subtitle: 'Press it, draw a rune, let go. Esc or right-click cancels.',
     });
     const label = new Gtk.ShortcutLabel({disabled_text: 'Off', valign: Gtk.Align.CENTER});
-    const sync = () => (label.accelerator = settings.get_strv(key)[0] ?? '');
+    // ShortcutLabel shows space-separated accelerators as alternatives.
+    const sync = () => (label.accelerator = settings.get_strv(key).join(' '));
     sync();
     const id = settings.connect(`changed::${key}`, sync);
     row.connect('destroy', () => settings.disconnect(id));

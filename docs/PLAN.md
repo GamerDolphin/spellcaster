@@ -12,7 +12,7 @@
 
 ## 1. The Big Idea
 
-1. Press the **cast shortcut** (default: `Super` + `Z`, changeable in the Spellbook).
+1. Press the **cast shortcut** (default: `Super` + `Z` or the Copilot key, changeable in the Spellbook).
 2. The screen dims a little and your cursor turns into a **glowing wand tip**.
 3. Draw a rune. A trail of magic light and sparks follows the cursor.
 4. Let go. The rune **flares up**, gets recognized, and the spell goes off with its own effect.

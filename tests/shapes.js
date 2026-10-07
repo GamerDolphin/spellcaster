@@ -128,12 +128,15 @@ export const generators = {
         const tilt = between(-0.3, 0.3);
         return polyline([[0, 0], [tilt, 1]], 40);
     },
+    up() {
+        const tilt = between(-0.3, 0.3);
+        return polyline([[0, 1], [tilt, 0]], 40);
+    },
 };
 
 // Strokes that are NOT runes and should fizzle.
 export const junk = {
     lineRight: () => polyline([[0, 0], [1, between(-0.15, 0.15)]], 40),
-    lineUp: () => polyline([[0, 1], [between(-0.2, 0.2), 0]], 40),
     wave() {
         const out = [];
         for (let i = 0; i <= 80; i++) {

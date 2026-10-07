@@ -10,7 +10,7 @@
 // and scoring each rune with soft thresholds. Coordinates are screen
 // coordinates, so y grows downward.
 
-export const RUNES = ['spiral', 'lightning', 'circle', 'v', 'caret', 'u', 'line', 'triangle'];
+export const RUNES = ['spiral', 'lightning', 'circle', 'v', 'caret', 'u', 'line', 'up', 'triangle'];
 
 const N_POINTS = 64;
 const DEG = 180 / Math.PI;
@@ -260,9 +260,11 @@ export function score(m) {
     const s = {};
 
     // A line must be really straight: a skinny zig-zag is lightning, not a line.
-    s.line = ramp(m.straightness, 0.86, 0.95) * ramp(m.downness, 0.70, 0.88) *
+    const straight = ramp(m.straightness, 0.86, 0.95) *
         (1 - ramp(m.deviation, 0.05, 0.1)) *
         (m.alternating >= 2 ? 0 : 1);
+    s.line = straight * ramp(m.downness, 0.70, 0.88);
+    s.up = straight * ramp(-m.downness, 0.70, 0.88);
 
     const loopy = ramp(m.consistency, 0.55, 0.78);
     s.circle = ramp(m.turning, 250, 310) *
