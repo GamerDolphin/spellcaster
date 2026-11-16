@@ -121,7 +121,8 @@ function countUiChildren() {
 
 async function run() {
     const runes = await import(`file://${encodeURI(REPO)}/spellcaster@gamerdolphin.github.io/lib/runes.js`);
-    const seat = Clutter.get_default_backend().get_default_seat();
+    // GNOME 51 removed Clutter.get_default_backend(); the stage knows the seat.
+    const seat = Clutter.get_default_backend?.().get_default_seat() ?? global.stage.context.get_backend().get_default_seat();
     pointer = seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
     keyboard = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
 
